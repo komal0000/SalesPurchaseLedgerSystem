@@ -189,6 +189,16 @@
                 <a href="{{ route('purchases.index') }}" class="block rounded-xl px-4 py-3 {{ request()->routeIs('purchases.*') ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-50 hover:text-indigo-600' }}">Purchases</a>
                 <a href="{{ route('payments.index') }}" class="block rounded-xl px-4 py-3 {{ request()->routeIs('payments.*') ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-50 hover:text-indigo-600' }}">Payments</a>
             </nav>
+            @auth
+                <div class="border-t border-gray-200 px-6 py-4">
+                    <p class="text-sm font-semibold text-gray-800">{{ auth()->user()->name }}</p>
+                    <p class="mt-0.5 text-xs text-gray-500">{{ auth()->user()->email }}</p>
+                    <form method="POST" action="{{ route('logout') }}" class="mt-3">
+                        @csrf
+                        <button type="submit" class="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-red-300 hover:text-red-600">Logout</button>
+                    </form>
+                </div>
+            @endauth
         </aside>
         <div class="fixed inset-0 z-40 bg-gray-900/40 lg:hidden" x-show="sidebarOpen" x-transition.opacity @click="sidebarOpen = false"></div>
         <aside class="fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] -translate-x-full flex-col border-r border-gray-200 bg-white transition-transform duration-200 lg:hidden" :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'">
@@ -207,6 +217,16 @@
                 <a href="{{ route('purchases.index') }}" class="block rounded-xl px-4 py-3 {{ request()->routeIs('purchases.*') ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-50 hover:text-indigo-600' }}">Purchases</a>
                 <a href="{{ route('payments.index') }}" class="block rounded-xl px-4 py-3 {{ request()->routeIs('payments.*') ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-50 hover:text-indigo-600' }}">Payments</a>
             </nav>
+            @auth
+                <div class="border-t border-gray-200 px-5 py-4">
+                    <p class="text-sm font-semibold text-gray-800">{{ auth()->user()->name }}</p>
+                    <p class="mt-0.5 text-xs text-gray-500">{{ auth()->user()->email }}</p>
+                    <form method="POST" action="{{ route('logout') }}" class="mt-3">
+                        @csrf
+                        <button type="submit" class="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-red-300 hover:text-red-600">Logout</button>
+                    </form>
+                </div>
+            @endauth
         </aside>
         <div class="min-w-0 flex-1">
             <header class="sticky top-0 z-30 border-b border-gray-200 bg-white/90 backdrop-blur lg:hidden">
@@ -215,7 +235,15 @@
                         <a href="{{ route('dashboard') }}" class="text-lg font-semibold text-indigo-600">LedgerApp</a>
                         <p class="text-xs text-gray-500">Sales, Purchase & Ledger System</p>
                     </div>
-                    <button type="button" class="inline-flex items-center rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-600" @click="sidebarOpen = true">Menu</button>
+                    <div class="flex items-center gap-2">
+                        @auth
+                            <form method="POST" action="{{ route('logout') }}">
+                                @csrf
+                                <button type="submit" class="inline-flex items-center rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-600">Logout</button>
+                            </form>
+                        @endauth
+                        <button type="button" class="inline-flex items-center rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-600" @click="sidebarOpen = true">Menu</button>
+                    </div>
                 </div>
             </header>
             <main class="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8 xl:px-8">
