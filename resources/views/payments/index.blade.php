@@ -19,6 +19,7 @@
                             <th class="px-5 py-4 text-right">Amount</th>
                             <th class="px-5 py-4 text-left">Type</th>
                             <th class="px-5 py-4 text-left">Account</th>
+                            <th class="px-5 py-4 text-left">Cheque Number</th>
                             <th class="px-5 py-4 text-left">Linked Bill</th>
                             <th class="px-5 py-4 text-right">Actions</th>
                         </tr>
@@ -36,6 +37,7 @@
                                     </span>
                                 </td>
                                 <td class="px-5 py-4 text-gray-500">{{ $payment->account->name }}</td>
+                                <td class="px-5 py-4 text-gray-500">{{ $payment->cheque_number ?: '-' }}</td>
                                 <td class="px-5 py-4 text-gray-500">
                                     @if ($payment->sale)
                                         Sale / {{ number_format($payment->sale->total, 2) }}
@@ -58,7 +60,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="px-5 py-12 text-center text-gray-500">No payments created yet.</td>
+                                <td colspan="7" class="px-5 py-12 text-center text-gray-500">No payments created yet.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -73,6 +75,7 @@
                         <div>
                             <a href="{{ route('payments.show', $payment) }}" class="font-semibold text-gray-900">{{ $payment->party->name }}</a>
                             <p class="mt-1 text-sm text-gray-500">{{ $payment->account->name }}</p>
+                            <p class="text-xs text-gray-500">Cheque: {{ $payment->cheque_number ?: '-' }}</p>
                         </div>
                         <span class="font-mono text-sm font-semibold text-indigo-700">{{ number_format($payment->amount, 2) }}</span>
                     </div>

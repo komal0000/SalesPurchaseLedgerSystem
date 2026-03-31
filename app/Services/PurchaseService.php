@@ -37,6 +37,7 @@ class PurchaseService
                     'amount' => $paymentData['amount'],
                     'type' => 'given',
                     'account_id' => $paymentData['account_id'],
+                    'cheque_number' => $paymentData['cheque_number'] ?? null,
                     'sale_id' => null,
                 ]);
 

@@ -38,16 +38,21 @@ class PaymentController extends Controller
         $sale = $request->filled('sale_id') ? Sale::query()->with('party')->find($request->string('sale_id')) : null;
         $purchase = $request->filled('purchase_id') ? Purchase::query()->with('party')->find($request->string('purchase_id')) : null;
         $selectedPartyId = old('party_id', $request->string('party_id')->toString() ?: ($sale?->party_id ?? $purchase?->party_id));
+        $accounts = Account::query()
+            ->orderByRaw("case when type = 'cash' then 0 else 1 end")
+            ->orderBy('name')
+            ->get();
+        $defaultCashAccountId = $accounts->firstWhere('type', 'cash')?->id;
 
         return view('payments.create', [
             'parties' => Party::query()->orderBy('name')->get(),
-            'accounts' => Account::query()->orderBy('name')->get(),
+            'accounts' => $accounts,
             'sales' => Sale::query()->with('party')->latest()->get(),
             'purchases' => Purchase::query()->with('party')->latest()->get(),
             'selectedPartyId' => $selectedPartyId,
+            'selectedAccountId' => old('account_id', $defaultCashAccountId),
             'selectedSaleId' => old('sale_id', $sale?->id),
             'selectedPurchaseId' => old('purchase_id', $purchase?->id),
-            'selectedType' => old('type', $sale ? 'received' : ($purchase ? 'given' : 'received')),
         ]);
     }
 
@@ -56,8 +61,8 @@ class PaymentController extends Controller
         $validated = $request->validate([
             'party_id' => ['required', 'uuid', 'exists:parties,id'],
             'amount' => ['required', 'numeric', 'min:0.01'],
-            'type' => ['required', 'in:received,given'],
             'account_id' => ['required', 'uuid', 'exists:accounts,id'],
+            'cheque_number' => ['nullable', 'string', 'max:50'],
             'sale_id' => ['nullable', 'uuid', 'exists:sales,id'],
             'purchase_id' => ['nullable', 'uuid', 'exists:purchases,id'],
         ]);
@@ -86,6 +91,10 @@ class PaymentController extends Controller
                 ]);
             }
         }
+
+        $validated['type'] = !empty($validated['sale_id'])
+            ? 'received'
+            : (!empty($validated['purchase_id']) ? 'given' : 'received');
 
         $payment = $this->service->create($validated);
 

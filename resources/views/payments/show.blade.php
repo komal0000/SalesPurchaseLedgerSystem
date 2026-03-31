@@ -22,6 +22,10 @@
                     <dt class="text-sm text-gray-500">Account</dt>
                     <dd class="mt-1 text-xl font-semibold text-gray-900">{{ $payment->account->name }}</dd>
                 </div>
+                <div class="rounded-lg bg-gray-50 p-4">
+                    <dt class="text-sm text-gray-500">Cheque Number</dt>
+                    <dd class="mt-1 text-xl font-semibold text-gray-900">{{ $payment->cheque_number ?: '-' }}</dd>
+                </div>
                 <div class="rounded-lg bg-gray-50 p-4 sm:col-span-2">
                     <dt class="text-sm text-gray-500">Linked Bill</dt>
                     <dd class="mt-1 text-gray-900">

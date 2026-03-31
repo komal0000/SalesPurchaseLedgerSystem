@@ -22,6 +22,7 @@ class PaymentService
                 'amount' => $data['amount'],
                 'type' => $data['type'],
                 'account_id' => $data['account_id'],
+                'cheque_number' => $data['cheque_number'] ?? null,
                 'sale_id' => $data['sale_id'] ?: null,
                 'purchase_id' => $data['purchase_id'] ?: null,
             ]);

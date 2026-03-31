@@ -60,6 +60,7 @@
                         <div>
                             <p class="font-medium text-gray-900">{{ ucfirst($payment->type) }} via {{ $payment->account->name }}</p>
                             <p class="text-sm text-gray-500">AD {{ $payment->created_at->format('d M Y, h:i A') }}</p>
+                            <p class="text-xs text-gray-500">Cheque: {{ $payment->cheque_number ?: '-' }}</p>
                         </div>
                         <div class="text-right">
                             <p class="font-mono font-semibold text-indigo-700">{{ number_format($payment->amount, 2) }}</p>

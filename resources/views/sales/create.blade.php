@@ -16,8 +16,9 @@
             ->map(fn ($payment) => [
                 'account_id' => (string) ($payment['account_id'] ?? ''),
                 'amount' => (float) ($payment['amount'] ?? 0),
+                'cheque_number' => (string) ($payment['cheque_number'] ?? ''),
             ])
-            ->filter(fn (array $payment) => $payment['account_id'] !== '' || $payment['amount'] > 0)
+            ->filter(fn (array $payment) => $payment['account_id'] !== '' || $payment['amount'] > 0 || $payment['cheque_number'] !== '')
             ->values()
             ->all();
     @endphp
@@ -26,6 +27,7 @@
         partyId: @js(old('party_id', '')),
         items: @js($initialItems),
         payments: @js($initialPayments),
+        defaultCashAccountId: @js($defaultCashAccountId),
     })">
         <div>
             <h1 class="text-2xl font-semibold text-gray-900">Sales Entry</h1>
@@ -38,8 +40,8 @@
             <div class="rounded-xl border border-gray-300 bg-white p-4 shadow-sm">
                 <div class="grid gap-4 md:grid-cols-12 md:items-end">
                     <div class="md:col-span-8">
-                        <label for="party_id" class="text-sm font-semibold text-gray-700">A/c</label>
-                        <select id="party_id" name="party_id" x-model="partyId" x-ref="party" @keydown.enter.prevent="focus('itemParticular')" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200" required>
+                        <label for="party_id" class="text-sm font-semibold text-gray-700">Party</label>
+                        <select id="party_id" name="party_id" x-model="partyId" x-ref="party" @keydown.enter.prevent="focus('itemParticular')" class="select2 mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200" required>
                             <option value="">Select party</option>
                             @foreach ($parties as $party)
                                 <option value="{{ $party->id }}">{{ $party->name }}</option>
@@ -119,18 +121,24 @@
                 </div>
 
                 <div class="grid gap-2 border-b border-gray-300 bg-gray-50 px-4 py-3 md:grid-cols-12">
-                    <div class="md:col-span-6">
+                    <div class="md:col-span-4">
                         <label class="text-xs font-semibold uppercase tracking-wide text-gray-600">Payment Via</label>
                         <select x-model="draftPayment.account_id" x-ref="paymentAccount" @keydown.enter.prevent="focus('paymentAmount')" class="mt-1 w-full rounded border border-gray-300 px-2 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200">
-                            <option value="">Select account</option>
+                            @if (! $defaultCashAccountId)
+                                <option value="">Select account</option>
+                            @endif
                             @foreach ($accounts as $account)
                                 <option value="{{ $account->id }}">{{ $account->name }} ({{ ucfirst($account->type) }})</option>
                             @endforeach
                         </select>
                     </div>
-                    <div class="md:col-span-4">
+                    <div class="md:col-span-3">
                         <label class="text-xs font-semibold uppercase tracking-wide text-gray-600">Payment Amount</label>
-                        <input x-model.number="draftPayment.amount" x-ref="paymentAmount" @keydown.enter.prevent="commitPayment" type="number" step="0.01" min="0.01" class="mt-1 w-full rounded border border-gray-300 px-2 py-2 text-right text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200" placeholder="0.00">
+                        <input x-model.number="draftPayment.amount" x-ref="paymentAmount" @keydown.enter.prevent="focus('paymentCheque')" type="number" step="0.01" min="0.01" class="mt-1 w-full rounded border border-gray-300 px-2 py-2 text-right text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200" placeholder="0.00">
+                    </div>
+                    <div class="md:col-span-3">
+                        <label class="text-xs font-semibold uppercase tracking-wide text-gray-600">Cheque Number</label>
+                        <input x-model="draftPayment.cheque_number" x-ref="paymentCheque" @keydown.enter.prevent="commitPayment" type="text" maxlength="50" class="mt-1 w-full rounded border border-gray-300 px-2 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200" placeholder="Optional">
                     </div>
                     <div class="md:col-span-2 md:flex md:items-end">
                         <button type="button" @click="commitPayment" class="mt-1 w-full rounded bg-indigo-600 px-2 py-2 text-sm font-semibold text-white hover:bg-indigo-700">ADD</button>
@@ -143,19 +151,21 @@
                             <tr>
                                 <th class="border border-gray-300 px-2 py-1 text-left">Account</th>
                                 <th class="border border-gray-300 px-2 py-1 text-right">Amount</th>
+                                <th class="border border-gray-300 px-2 py-1 text-left">Cheque Number</th>
                                 <th class="border border-gray-300 px-2 py-1 text-center">Action</th>
                             </tr>
                         </thead>
                         <tbody>
                             <template x-if="payments.length === 0">
                                 <tr>
-                                    <td colspan="3" class="border border-gray-300 px-2 py-3 text-center text-gray-500">No payments added.</td>
+                                    <td colspan="4" class="border border-gray-300 px-2 py-3 text-center text-gray-500">No payments added.</td>
                                 </tr>
                             </template>
                             <template x-for="(payment, index) in payments" :key="`payment-${index}`">
                                 <tr>
                                     <td class="border border-gray-300 px-2 py-1" x-text="accountName(payment.account_id)"></td>
                                     <td class="border border-gray-300 px-2 py-1 text-right font-mono" x-text="currency(payment.amount)"></td>
+                                    <td class="border border-gray-300 px-2 py-1" x-text="payment.cheque_number || '-' "></td>
                                     <td class="border border-gray-300 px-2 py-1 text-center">
                                         <button type="button" @click="removePayment(index)" class="rounded border border-red-200 px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50">Remove</button>
                                     </td>
@@ -167,10 +177,12 @@
                                 <td class="border border-gray-300 px-2 py-1 text-right">Paid</td>
                                 <td class="border border-gray-300 px-2 py-1 text-right font-mono" x-text="currency(paymentTotal())"></td>
                                 <td class="border border-gray-300 px-2 py-1"></td>
+                                <td class="border border-gray-300 px-2 py-1"></td>
                             </tr>
                             <tr>
                                 <td class="border border-gray-300 px-2 py-1 text-right">Due</td>
                                 <td class="border border-gray-300 px-2 py-1 text-right font-mono" x-text="currency(dueTotal())"></td>
+                                <td class="border border-gray-300 px-2 py-1"></td>
                                 <td class="border border-gray-300 px-2 py-1"></td>
                             </tr>
                         </tfoot>
@@ -190,6 +202,7 @@
                 <div>
                     <input type="hidden" :name="`payments[${index}][account_id]`" :value="payment.account_id">
                     <input type="hidden" :name="`payments[${index}][amount]`" :value="number(payment.amount)">
+                    <input type="hidden" :name="`payments[${index}][cheque_number]`" :value="payment.cheque_number">
                 </div>
             </template>
 
@@ -208,6 +221,7 @@
                 partyId: String(initialState.partyId || ''),
                 items: [],
                 payments: [],
+                defaultCashAccountId: String(initialState.defaultCashAccountId || ''),
                 message: '',
                 draftItem: {
                     particular: '',
@@ -216,8 +230,9 @@
                     total: 0,
                 },
                 draftPayment: {
-                    account_id: '',
+                    account_id: String(initialState.defaultCashAccountId || ''),
                     amount: '',
+                    cheque_number: '',
                 },
                 accountLookup: @js($accounts->mapWithKeys(fn ($account) => [$account->id => $account->name])->all()),
                 init() {
@@ -236,7 +251,16 @@
                     this.payments = (initialState.payments || []).map((payment) => ({
                         account_id: String(payment.account_id || ''),
                         amount: this.toNumber(payment.amount),
+                        cheque_number: String(payment.cheque_number || ''),
                     }));
+
+                    if (window.jQuery && this.$refs.party) {
+                        const $party = window.jQuery(this.$refs.party);
+                        $party.val(this.partyId).trigger('change.select2');
+                        $party.on('change', (event) => {
+                            this.partyId = String(event.target.value || '');
+                        });
+                    }
 
                     this.updateDraftItemTotal();
                 },
@@ -312,6 +336,7 @@
 
                     const accountId = String(this.draftPayment.account_id || '');
                     const amount = this.toNumber(this.draftPayment.amount);
+                    const chequeNumber = String(this.draftPayment.cheque_number || '').trim();
 
                     if (!accountId || amount <= 0) {
                         this.message = 'Select payment account and amount.';
@@ -329,11 +354,13 @@
                     this.payments.push({
                         account_id: accountId,
                         amount,
+                        cheque_number: chequeNumber,
                     });
 
                     this.draftPayment = {
-                        account_id: '',
+                        account_id: this.defaultCashAccountId,
                         amount: '',
+                        cheque_number: '',
                     };
 
                     this.focus('paymentAccount');
