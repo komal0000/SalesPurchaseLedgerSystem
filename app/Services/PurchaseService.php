@@ -31,7 +31,19 @@ class PurchaseService
 
             $this->ledger->recordPurchase($purchase->fresh());
 
-            return $purchase->load(['party', 'items']);
+            foreach ($data['payments'] ?? [] as $paymentData) {
+                $payment = $purchase->payments()->create([
+                    'party_id' => $purchase->party_id,
+                    'amount' => $paymentData['amount'],
+                    'type' => 'given',
+                    'account_id' => $paymentData['account_id'],
+                    'sale_id' => null,
+                ]);
+
+                $this->ledger->recordPayment($payment);
+            }
+
+            return $purchase->load(['party', 'items', 'payments.account']);
         });
     }
 

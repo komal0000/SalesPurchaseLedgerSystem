@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\DateHelper;
+use App\Models\Account;
 use App\Models\Party;
 use App\Models\Purchase;
 use App\Services\PurchaseService;
@@ -64,19 +65,53 @@ class PurchaseController extends Controller
     {
         return view('purchases.create', [
             'parties' => Party::query()->orderBy('name')->get(),
+            'accounts' => Account::query()->orderBy('name')->get(),
             'currentBsDateInt' => DateHelper::currentBsInt(),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
-        $validated = $request->validate([
+        $payload = $request->all();
+
+        $payload['items'] = collect($payload['items'] ?? [])
+            ->map(fn (array $item) => [
+                'particular' => trim((string) ($item['particular'] ?? '')),
+                'qty' => $item['qty'] ?? null,
+                'price' => $item['price'] ?? null,
+            ])
+            ->filter(fn (array $item) => $item['particular'] !== '' || filled($item['qty']) || filled($item['price']))
+            ->values()
+            ->all();
+
+        $payload['payments'] = collect($payload['payments'] ?? [])
+            ->map(fn (array $payment) => [
+                'account_id' => $payment['account_id'] ?? null,
+                'amount' => $payment['amount'] ?? null,
+            ])
+            ->filter(fn (array $payment) => filled($payment['account_id']) || filled($payment['amount']))
+            ->values()
+            ->all();
+
+        $validated = validator($payload, [
             'party_id' => ['required', 'uuid', 'exists:parties,id'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.particular' => ['required', 'string', 'max:255'],
             'items.*.qty' => ['required', 'numeric', 'min:0.01'],
             'items.*.price' => ['required', 'numeric', 'min:0'],
-        ]);
+            'payments' => ['nullable', 'array'],
+            'payments.*.account_id' => ['required', 'uuid', 'exists:accounts,id'],
+            'payments.*.amount' => ['required', 'numeric', 'min:0.01'],
+        ])->validate();
+
+        $itemTotal = collect($validated['items'])->sum(fn (array $item) => (float) $item['qty'] * (float) $item['price']);
+        $paymentTotal = collect($validated['payments'] ?? [])->sum(fn (array $payment) => (float) $payment['amount']);
+
+        if ($paymentTotal > $itemTotal) {
+            throw ValidationException::withMessages([
+                'payments' => 'Payment total cannot be greater than bill total.',
+            ]);
+        }
 
         $purchase = $this->service->create($validated);
 
