@@ -3,6 +3,7 @@
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\EmployeeSalaryController;
 use App\Http\Controllers\PartyController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PurchaseController;
@@ -31,6 +32,8 @@ Route::middleware('auth')->group(function () {
     Route::resource('sales', SaleController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
     Route::resource('purchases', PurchaseController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
     Route::resource('payments', PaymentController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
+    Route::resource('employee-salaries', EmployeeSalaryController::class)->only(['index', 'create', 'store', 'show']);
+    Route::get('employee-salaries/{employeeSalary}/print', [EmployeeSalaryController::class, 'print'])->name('employee-salaries.print');
 
     Route::get('reports/cashbook', [ReportController::class, 'cashbook'])->name('reports.cashbook');
     Route::get('reports/profit-loss', [ReportController::class, 'profitLoss'])->name('reports.profit-loss');

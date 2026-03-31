@@ -7,10 +7,13 @@
                 <h1 class="text-2xl font-semibold text-gray-900">{{ $account->name }} Ledger</h1>
                 <p class="text-sm text-gray-500">Every cash and bank movement is calculated from ledger rows.</p>
             </div>
-            <a href="{{ route('accounts.show', $account) }}" class="text-sm text-indigo-600 hover:text-indigo-700">Back to account</a>
+            <div class="flex items-center gap-3 print:hidden">
+                <button type="button" onclick="window.print()" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Print Ledger</button>
+                <a href="{{ route('accounts.show', $account) }}" class="text-sm text-indigo-600 hover:text-indigo-700">Back to account</a>
+            </div>
         </div>
 
-        <form method="GET" action="{{ route('accounts.ledger', $account) }}" class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+        <form method="GET" action="{{ route('accounts.ledger', $account) }}" class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm print:hidden">
             <div class="grid gap-4 md:grid-cols-4">
                 <div>
                     @include('partials.bs-date-selector', ['name' => 'from_date_bs', 'label' => 'From BS Date', 'value' => $filters['from_date_bs'] ?? null])
@@ -33,7 +36,7 @@
         </div>
 
         <div class="space-y-4" x-data="{ viewMode: 'table' }">
-            <div class="md:hidden">
+            <div class="md:hidden print:hidden">
                 <div class="inline-flex overflow-hidden rounded-lg border border-gray-300">
                     <button type="button" @click="viewMode = 'table'" class="px-4 py-2 text-sm font-medium" :class="viewMode === 'table' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700'">Table</button>
                     <button type="button" @click="viewMode = 'card'" class="px-4 py-2 text-sm font-medium" :class="viewMode === 'card' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700'">Card</button>
@@ -75,7 +78,7 @@
                 </div>
             </div>
 
-            <div class="space-y-3 md:hidden" x-show="viewMode === 'card'" x-cloak>
+            <div class="space-y-3 md:hidden print:hidden" x-show="viewMode === 'card'" x-cloak>
                 @php $runningCard = (float) $openingBalance; @endphp
                 @forelse ($ledgerRows as $row)
                     @php $runningCard += ((float) $row->dr_amount - (float) $row->cr_amount); @endphp

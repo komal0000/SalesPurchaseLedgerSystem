@@ -24,6 +24,7 @@
             ['label' => 'Sales', 'route' => 'sales.index', 'active' => 'sales.*'],
             ['label' => 'Purchases', 'route' => 'purchases.index', 'active' => 'purchases.*'],
             ['label' => 'Payments', 'route' => 'payments.index', 'active' => 'payments.*'],
+            ['label' => 'Employee Salary', 'route' => 'employee-salaries.index', 'active' => 'employee-salaries.*'],
             ['label' => 'Cashbook', 'route' => 'reports.cashbook', 'active' => 'reports.cashbook'],
             ['label' => 'Profit / Loss', 'route' => 'reports.profit-loss', 'active' => 'reports.profit-loss'],
         ];
