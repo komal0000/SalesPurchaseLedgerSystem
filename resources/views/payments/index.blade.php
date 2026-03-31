@@ -5,10 +5,49 @@
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
                 <h1 class="text-2xl font-semibold text-gray-900 sm:text-3xl">Payments</h1>
-                <p class="text-sm text-gray-500">Deleting a payment creates reverse ledger entries before removing the payment row.</p>
+                <p class="text-sm text-gray-500">Search payments first to load results quickly for large datasets.</p>
             </div>
             <a href="{{ route('payments.create') }}" class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-700">New Payment</a>
         </div>
+
+        <form method="GET" action="{{ route('payments.index') }}" class="grid gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm md:grid-cols-6 md:items-end">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Party</label>
+                <select name="party_id" class="select2 mt-1 w-full rounded-lg border border-gray-300 px-3 py-2">
+                    <option value="">All parties</option>
+                    @foreach ($parties as $party)
+                        <option value="{{ $party->id }}" @selected(($filters['party_id'] ?? null) === $party->id)>{{ $party->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Account</label>
+                <select name="account_id" class="select2 mt-1 w-full rounded-lg border border-gray-300 px-3 py-2">
+                    <option value="">All accounts</option>
+                    @foreach ($accounts as $account)
+                        <option value="{{ $account->id }}" @selected(($filters['account_id'] ?? null) === $account->id)>{{ $account->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Type</label>
+                <select name="type" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2">
+                    <option value="">All</option>
+                    <option value="received" @selected(($filters['type'] ?? null) === 'received')>Received</option>
+                    <option value="given" @selected(($filters['type'] ?? null) === 'given')>Given</option>
+                </select>
+            </div>
+            @include('partials.bs-date-selector', ['name' => 'from_date_bs', 'label' => 'From BS Date', 'value' => $filters['from_date_bs'] ?? null])
+            @include('partials.bs-date-selector', ['name' => 'to_date_bs', 'label' => 'To BS Date', 'value' => $filters['to_date_bs'] ?? null])
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Keyword</label>
+                <input type="text" name="keyword" value="{{ $filters['keyword'] ?? '' }}" placeholder="Cheque / party / account" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2">
+            </div>
+            <div class="md:col-span-6 flex items-center gap-3">
+                <button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Search</button>
+                <a href="{{ route('payments.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Reset</a>
+            </div>
+        </form>
 
         <div class="hidden overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm md:block">
             <div class="overflow-x-auto">
@@ -60,7 +99,9 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-5 py-12 text-center text-gray-500">No payments created yet.</td>
+                                <td colspan="7" class="px-5 py-12 text-center text-gray-500">
+                                    {{ $hasSearched ? 'No payments found.' : 'Use filters and click Search to load payments.' }}
+                                </td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -104,11 +145,13 @@
                 </div>
             @empty
                 <div class="rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-500">
-                    No payments created yet.
+                    {{ $hasSearched ? 'No payments found.' : 'Use filters and tap Search to load payments.' }}
                 </div>
             @endforelse
         </div>
 
-        {{ $payments->links() }}
+        @if ($hasSearched)
+            {{ $payments->links() }}
+        @endif
     </div>
 @endsection

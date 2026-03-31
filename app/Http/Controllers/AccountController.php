@@ -44,7 +44,12 @@ class AccountController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'type' => ['required', 'in:cash,bank'],
+            'opening_balance' => ['nullable', 'numeric', 'min:0'],
+            'opening_balance_side' => ['nullable', 'in:dr,cr'],
         ]);
+
+        $validated['opening_balance'] = (float) ($validated['opening_balance'] ?? 0);
+        $validated['opening_balance_side'] = $validated['opening_balance_side'] ?? 'dr';
 
         $account = Account::query()->create($validated);
 
@@ -58,6 +63,7 @@ class AccountController extends Controller
         return view('accounts.show', [
             'account' => $account->loadCount('payments'),
             'balance' => $this->ledger->accountBalance($account->id),
+            'openingBalanceSigned' => $this->openingSigned((float) ($account->opening_balance ?? 0), $account->opening_balance_side ?? 'dr'),
         ]);
     }
 
@@ -79,10 +85,12 @@ class AccountController extends Controller
 
         $query = Ledger::query()->where('account_id', $account->id);
 
-        $openingBalance = (clone $query)
+        $openingBase = $this->openingSigned((float) ($account->opening_balance ?? 0), $account->opening_balance_side ?? 'dr');
+
+        $openingBalance = $openingBase + ((clone $query)
             ->when($fromAd, fn ($builder) => $builder->whereDate('created_at', '<', $fromAd))
             ->selectRaw('COALESCE(SUM(dr_amount) - SUM(cr_amount), 0) as balance')
-            ->value('balance') ?? 0;
+            ->value('balance') ?? 0);
 
         $ledgerRows = (clone $query)
             ->when($fromAd, fn ($builder) => $builder->whereDate('created_at', '>=', $fromAd))
@@ -102,6 +110,23 @@ class AccountController extends Controller
                 'to_date_bs' => $filters['to_date_bs'] ?? null,
             ],
         ]);
+    }
+
+    public function updateOpeningBalance(Request $request, Account $account): RedirectResponse
+    {
+        $validated = $request->validate([
+            'opening_balance' => ['required', 'numeric', 'min:0'],
+            'opening_balance_side' => ['required', 'in:dr,cr'],
+        ]);
+
+        $account->update([
+            'opening_balance' => (float) $validated['opening_balance'],
+            'opening_balance_side' => $validated['opening_balance_side'],
+        ]);
+
+        return redirect()
+            ->route('accounts.show', $account)
+            ->with('success', 'Opening balance updated successfully.');
     }
 
     private function attachReferenceText(Collection $ledgerRows): void
@@ -167,5 +192,10 @@ class AccountController extends Controller
                 number_format((float) $item->qty, 2)
             ))
             ->implode(', ');
+    }
+
+    private function openingSigned(float $amount, string $side): float
+    {
+        return $side === 'cr' ? -$amount : $amount;
     }
 }

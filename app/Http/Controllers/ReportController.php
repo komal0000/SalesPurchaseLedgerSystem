@@ -10,6 +10,7 @@ use App\Models\Purchase;
 use App\Models\Sale;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
@@ -38,6 +39,9 @@ class ReportController extends Controller
             ->get();
 
         $selectedAccountId = $filters['account_id'] ?? null;
+        $hasSearched = filled($selectedAccountId)
+            || filled($filters['from_date_bs'] ?? null)
+            || filled($filters['to_date_bs'] ?? null);
 
         $query = Ledger::query()
             ->whereNotNull('account_id')
@@ -47,17 +51,24 @@ class ReportController extends Controller
             $query->where('account_id', $selectedAccountId);
         }
 
-        $openingBalance = (clone $query)
-            ->when($fromAd, fn ($builder) => $builder->whereDate('created_at', '<', $fromAd))
-            ->selectRaw('COALESCE(SUM(dr_amount) - SUM(cr_amount), 0) as balance')
-            ->value('balance') ?? 0;
+        if ($hasSearched) {
+            $openingBase = $this->openingBalanceBase($cashAccounts, $selectedAccountId);
 
-        $ledgerRows = (clone $query)
-            ->when($fromAd, fn ($builder) => $builder->whereDate('created_at', '>=', $fromAd))
-            ->when($toAd, fn ($builder) => $builder->whereDate('created_at', '<=', $toAd))
-            ->orderBy('created_at')
-            ->orderBy('id')
-            ->get();
+            $openingBalance = $openingBase + ((clone $query)
+                ->when($fromAd, fn ($builder) => $builder->whereDate('created_at', '<', $fromAd))
+                ->selectRaw('COALESCE(SUM(dr_amount) - SUM(cr_amount), 0) as balance')
+                ->value('balance') ?? 0);
+
+            $ledgerRows = (clone $query)
+                ->when($fromAd, fn ($builder) => $builder->whereDate('created_at', '>=', $fromAd))
+                ->when($toAd, fn ($builder) => $builder->whereDate('created_at', '<=', $toAd))
+                ->orderBy('created_at')
+                ->orderBy('id')
+                ->get();
+        } else {
+            $openingBalance = 0;
+            $ledgerRows = collect();
+        }
 
         $paymentMap = Payment::query()
             ->with('party:id,name')
@@ -86,6 +97,7 @@ class ReportController extends Controller
                 'from_date_bs' => $filters['from_date_bs'] ?? null,
                 'to_date_bs' => $filters['to_date_bs'] ?? null,
             ],
+            'hasSearched' => $hasSearched,
         ]);
     }
 
@@ -99,29 +111,59 @@ class ReportController extends Controller
             'to_date_bs' => ['nullable', 'regex:/^\d{4}-\d{2}-\d{2}$/'],
         ]);
 
+        $hasSearched = filled($filters['from_date_bs'] ?? null)
+            || filled($filters['to_date_bs'] ?? null);
+
         $fromBs = $filters['from_date_bs'] ?? $startBs;
         $toBs = $filters['to_date_bs'] ?? $todayBs;
 
-        try {
-            [$fromAd, $toAd] = DateHelper::getAdRangeFromBsFilters($fromBs, $toBs);
-        } catch (Throwable $exception) {
-            throw ValidationException::withMessages([
-                'from_date_bs' => $exception->getMessage(),
-                'to_date_bs' => $exception->getMessage(),
-            ]);
+        if ($hasSearched) {
+            try {
+                [$fromAd, $toAd] = DateHelper::getAdRangeFromBsFilters($fromBs, $toBs);
+            } catch (Throwable $exception) {
+                throw ValidationException::withMessages([
+                    'from_date_bs' => $exception->getMessage(),
+                    'to_date_bs' => $exception->getMessage(),
+                ]);
+            }
+
+            $salesTotal = (float) Sale::query()
+                ->whereDate('created_at', '>=', $fromAd)
+                ->whereDate('created_at', '<=', $toAd)
+                ->sum('total');
+
+            $purchaseTotal = (float) Purchase::query()
+                ->whereDate('created_at', '>=', $fromAd)
+                ->whereDate('created_at', '<=', $toAd)
+                ->sum('total');
+
+            $profitLoss = $salesTotal - $purchaseTotal;
+
+            $salesDetails = Sale::query()
+                ->with('party:id,name')
+                ->whereDate('created_at', '>=', $fromAd)
+                ->whereDate('created_at', '<=', $toAd)
+                ->orderByDesc('created_at')
+                ->orderByDesc('id')
+                ->get();
+
+            $purchaseDetails = Purchase::query()
+                ->with('party:id,name')
+                ->whereDate('created_at', '>=', $fromAd)
+                ->whereDate('created_at', '<=', $toAd)
+                ->orderByDesc('created_at')
+                ->orderByDesc('id')
+                ->get();
+
+            $salesDetails->each(fn (Sale $sale) => $sale->created_at_bs = DateHelper::adToBs($sale->created_at));
+            $purchaseDetails->each(fn (Purchase $purchase) => $purchase->created_at_bs = DateHelper::adToBs($purchase->created_at));
+        } else {
+            $salesTotal = 0;
+            $purchaseTotal = 0;
+            $profitLoss = 0;
+            $salesDetails = collect();
+            $purchaseDetails = collect();
         }
-
-        $salesTotal = (float) Sale::query()
-            ->whereDate('created_at', '>=', $fromAd)
-            ->whereDate('created_at', '<=', $toAd)
-            ->sum('total');
-
-        $purchaseTotal = (float) Purchase::query()
-            ->whereDate('created_at', '>=', $fromAd)
-            ->whereDate('created_at', '<=', $toAd)
-            ->sum('total');
-
-        $profitLoss = $salesTotal - $purchaseTotal;
 
         return view('reports.profit-loss', [
             'filters' => [
@@ -131,6 +173,22 @@ class ReportController extends Controller
             'salesTotal' => $salesTotal,
             'purchaseTotal' => $purchaseTotal,
             'profitLoss' => $profitLoss,
+            'salesDetails' => $salesDetails,
+            'purchaseDetails' => $purchaseDetails,
+            'hasSearched' => $hasSearched,
         ]);
+    }
+
+    private function openingBalanceBase(Collection $cashAccounts, ?string $selectedAccountId): float
+    {
+        $accounts = $selectedAccountId
+            ? $cashAccounts->where('id', $selectedAccountId)
+            : $cashAccounts;
+
+        return (float) $accounts->sum(function (Account $account) {
+            $amount = (float) ($account->opening_balance ?? 0);
+
+            return ($account->opening_balance_side ?? 'dr') === 'cr' ? -$amount : $amount;
+        });
     }
 }

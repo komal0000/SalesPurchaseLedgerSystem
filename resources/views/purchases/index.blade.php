@@ -62,7 +62,11 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="6" class="px-5 py-12 text-center text-gray-500">No purchases found.</td></tr>
+                            <tr>
+                                <td colspan="6" class="px-5 py-12 text-center text-gray-500">
+                                    {{ $hasSearched ? 'No purchases found.' : 'Use filters and click Search to load purchases.' }}
+                                </td>
+                            </tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -89,10 +93,14 @@
                     </div>
                 </div>
             @empty
-                <div class="rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-500">No purchases found.</div>
+                <div class="rounded-xl border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-500">
+                    {{ $hasSearched ? 'No purchases found.' : 'Use filters and tap Search to load purchases.' }}
+                </div>
             @endforelse
         </div>
 
-        {{ $purchases->links() }}
+        @if ($hasSearched)
+            {{ $purchases->links() }}
+        @endif
     </div>
 @endsection

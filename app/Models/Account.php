@@ -16,6 +16,10 @@ class Account extends Model
 
     protected $keyType = 'string';
 
+    protected $casts = [
+        'opening_balance' => 'decimal:2',
+    ];
+
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);

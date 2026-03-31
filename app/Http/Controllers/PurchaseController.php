@@ -10,6 +10,7 @@ use App\Services\PurchaseService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
@@ -34,20 +35,35 @@ class PurchaseController extends Controller
             ]);
         }
 
-        $purchases = Purchase::query()
-            ->with(['party', 'payments'])
-            ->when($filters['party_id'] ?? null, fn ($query, $partyId) => $query->where('party_id', $partyId))
-            ->when($fromAd, fn ($query) => $query->whereDate('created_at', '>=', $fromAd))
-            ->when($toAd, fn ($query) => $query->whereDate('created_at', '<=', $toAd))
-            ->latest()
-            ->paginate(20)
-            ->withQueryString();
+        $hasSearched = filled($filters['party_id'] ?? null)
+            || filled($filters['from_date_bs'] ?? null)
+            || filled($filters['to_date_bs'] ?? null);
 
-        $purchases->through(function (Purchase $purchase) {
-            $purchase->created_at_bs = DateHelper::adToBs($purchase->created_at);
-            $purchase->paid_amount = (float) $purchase->payments->where('type', 'given')->sum('amount');
-            return $purchase;
-        });
+        if ($hasSearched) {
+            $purchases = Purchase::query()
+                ->with(['party', 'payments'])
+                ->when($filters['party_id'] ?? null, fn ($query, $partyId) => $query->where('party_id', $partyId))
+                ->when($fromAd, fn ($query) => $query->whereDate('created_at', '>=', $fromAd))
+                ->when($toAd, fn ($query) => $query->whereDate('created_at', '<=', $toAd))
+                ->latest()
+                ->paginate(20)
+                ->withQueryString();
+
+            $purchases->through(function (Purchase $purchase) {
+                $purchase->created_at_bs = DateHelper::adToBs($purchase->created_at);
+                $purchase->paid_amount = (float) $purchase->payments->where('type', 'given')->sum('amount');
+
+                return $purchase;
+            });
+        } else {
+            $purchases = new LengthAwarePaginator(
+                items: [],
+                total: 0,
+                perPage: 20,
+                currentPage: 1,
+                options: ['path' => $request->url(), 'query' => $request->query()]
+            );
+        }
 
         return view('purchases.index', [
             'purchases' => $purchases,
@@ -57,6 +73,7 @@ class PurchaseController extends Controller
                 'from_date_bs' => $filters['from_date_bs'] ?? null,
                 'to_date_bs' => $filters['to_date_bs'] ?? null,
             ],
+            'hasSearched' => $hasSearched,
             'currentBsDateInt' => DateHelper::currentBsInt(),
         ]);
     }

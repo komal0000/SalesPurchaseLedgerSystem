@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Models\Account;
 use App\Models\Ledger;
 use App\Models\Payment;
+use App\Models\Party;
 use App\Models\Purchase;
 use App\Models\Sale;
 
@@ -87,17 +89,30 @@ class LedgerService
 
     public function partyBalance(string $partyId): float
     {
-        return (float) (Ledger::query()
+        $ledgerBalance = (float) (Ledger::query()
             ->where('party_id', $partyId)
             ->selectRaw('COALESCE(SUM(dr_amount) - SUM(cr_amount), 0) as balance')
             ->value('balance') ?? 0);
+
+        $party = Party::query()->find($partyId);
+
+        return $ledgerBalance + $this->openingSigned((float) ($party?->opening_balance ?? 0), $party?->opening_balance_side ?? 'dr');
     }
 
     public function accountBalance(string $accountId): float
     {
-        return (float) (Ledger::query()
+        $ledgerBalance = (float) (Ledger::query()
             ->where('account_id', $accountId)
             ->selectRaw('COALESCE(SUM(dr_amount) - SUM(cr_amount), 0) as balance')
             ->value('balance') ?? 0);
+
+        $account = Account::query()->find($accountId);
+
+        return $ledgerBalance + $this->openingSigned((float) ($account?->opening_balance ?? 0), $account?->opening_balance_side ?? 'dr');
+    }
+
+    private function openingSigned(float $amount, string $side): float
+    {
+        return $side === 'cr' ? -$amount : $amount;
     }
 }

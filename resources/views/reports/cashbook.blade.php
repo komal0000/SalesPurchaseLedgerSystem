@@ -75,7 +75,9 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="px-4 py-10 text-center font-sans text-gray-500">No cashbook rows found for this range.</td>
+                                <td colspan="6" class="px-4 py-10 text-center font-sans text-gray-500">
+                                    {{ $hasSearched ? 'No cashbook rows found for this range.' : 'Apply search filters to load cashbook data.' }}
+                                </td>
                             </tr>
                         @endforelse
                     </tbody>

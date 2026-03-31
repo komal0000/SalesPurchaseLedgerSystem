@@ -12,25 +12,92 @@ use App\Services\PaymentService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class PaymentController extends Controller
 {
     public function __construct(private readonly PaymentService $service) {}
 
-    public function index(): View
+    public function index(Request $request): View
     {
-        $payments = Payment::query()
-            ->with(['party', 'account', 'sale', 'purchase'])
-            ->latest()
-            ->paginate(20);
+        $filters = $request->validate([
+            'party_id' => ['nullable', 'uuid', 'exists:parties,id'],
+            'account_id' => ['nullable', 'uuid', 'exists:accounts,id'],
+            'type' => ['nullable', 'in:received,given'],
+            'keyword' => ['nullable', 'string', 'max:80'],
+            'from_date_bs' => ['nullable', 'regex:/^\d{4}-\d{2}-\d{2}$/'],
+            'to_date_bs' => ['nullable', 'regex:/^\d{4}-\d{2}-\d{2}$/'],
+        ]);
 
-        $payments->through(function (Payment $payment) {
-            $payment->created_at_bs = DateHelper::adToBs($payment->created_at);
-            return $payment;
-        });
+        try {
+            [$fromAd, $toAd] = DateHelper::getAdRangeFromBsFilters($filters['from_date_bs'] ?? null, $filters['to_date_bs'] ?? null);
+        } catch (Throwable $exception) {
+            throw ValidationException::withMessages([
+                'from_date_bs' => $exception->getMessage(),
+                'to_date_bs' => $exception->getMessage(),
+            ]);
+        }
 
-        return view('payments.index', compact('payments'));
+        $hasSearched = filled($filters['party_id'] ?? null)
+            || filled($filters['account_id'] ?? null)
+            || filled($filters['type'] ?? null)
+            || filled($filters['keyword'] ?? null)
+            || filled($filters['from_date_bs'] ?? null)
+            || filled($filters['to_date_bs'] ?? null);
+
+        if ($hasSearched) {
+            $payments = Payment::query()
+                ->with(['party', 'account', 'sale', 'purchase'])
+                ->when($filters['party_id'] ?? null, fn ($query, $partyId) => $query->where('party_id', $partyId))
+                ->when($filters['account_id'] ?? null, fn ($query, $accountId) => $query->where('account_id', $accountId))
+                ->when($filters['type'] ?? null, fn ($query, $type) => $query->where('type', $type))
+                ->when($fromAd, fn ($query) => $query->whereDate('created_at', '>=', $fromAd))
+                ->when($toAd, fn ($query) => $query->whereDate('created_at', '<=', $toAd))
+                ->when($filters['keyword'] ?? null, function ($query, $keyword) {
+                    $term = '%' . trim((string) $keyword) . '%';
+
+                    $query->where(function ($subQuery) use ($term) {
+                        $subQuery
+                            ->where('cheque_number', 'like', $term)
+                            ->orWhereHas('party', fn ($partyQuery) => $partyQuery->where('name', 'like', $term))
+                            ->orWhereHas('account', fn ($accountQuery) => $accountQuery->where('name', 'like', $term));
+                    });
+                })
+                ->latest()
+                ->paginate(20)
+                ->withQueryString();
+
+            $payments->through(function (Payment $payment) {
+                $payment->created_at_bs = DateHelper::adToBs($payment->created_at);
+
+                return $payment;
+            });
+        } else {
+            $payments = new LengthAwarePaginator(
+                items: [],
+                total: 0,
+                perPage: 20,
+                currentPage: 1,
+                options: ['path' => $request->url(), 'query' => $request->query()]
+            );
+        }
+
+        return view('payments.index', [
+            'payments' => $payments,
+            'parties' => Party::query()->orderBy('name')->get(),
+            'accounts' => Account::query()->orderByRaw("case when type = 'cash' then 0 else 1 end")->orderBy('name')->get(),
+            'filters' => [
+                'party_id' => $filters['party_id'] ?? null,
+                'account_id' => $filters['account_id'] ?? null,
+                'type' => $filters['type'] ?? null,
+                'keyword' => $filters['keyword'] ?? null,
+                'from_date_bs' => $filters['from_date_bs'] ?? null,
+                'to_date_bs' => $filters['to_date_bs'] ?? null,
+            ],
+            'hasSearched' => $hasSearched,
+        ]);
     }
 
     public function create(Request $request): View

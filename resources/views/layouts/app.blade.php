@@ -4,11 +4,15 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ $title ?? 'Sales, Purchase & Ledger System' }}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <script>
+        window.bsDateConfig = @json($bsDateConfig ?? ['years' => [], 'months' => [], 'monthMap' => []]);
+    </script>
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <link href="{{ asset('css/layout.css') }}" rel="stylesheet" />
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="{{ asset('js/layout.js') }}" defer></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 <body class="min-h-screen bg-gray-50 text-gray-800" x-data="{ sidebarOpen: false }">
@@ -148,10 +152,6 @@
             </main>
         </div>
     </div>
-    <script>
-        window.bsDateConfig = @json($bsDateConfig ?? ['years' => [], 'months' => [], 'monthMap' => []]);
-    </script>
-    <script src="{{ asset('js/layout.js') }}" defer></script>
 </body>
 </html>
 

@@ -16,6 +16,10 @@ class Party extends Model
 
     protected $keyType = 'string';
 
+    protected $casts = [
+        'opening_balance' => 'decimal:2',
+    ];
+
     public function sales(): HasMany
     {
         return $this->hasMany(Sale::class);

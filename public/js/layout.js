@@ -282,6 +282,8 @@ function bsDateSelector(name, initialValue = null) {
     };
 }
 
+window.bsDateSelector = bsDateSelector;
+
 document.addEventListener('alpine:init', () => {
     window.bsDateSelector = bsDateSelector;
 });

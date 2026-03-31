@@ -44,7 +44,12 @@ class PartyController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:255'],
+            'opening_balance' => ['nullable', 'numeric', 'min:0'],
+            'opening_balance_side' => ['nullable', 'in:dr,cr'],
         ]);
+
+        $validated['opening_balance'] = (float) ($validated['opening_balance'] ?? 0);
+        $validated['opening_balance_side'] = $validated['opening_balance_side'] ?? 'dr';
 
         $party = Party::query()->create($validated);
 
@@ -58,6 +63,7 @@ class PartyController extends Controller
         return view('parties.show', [
             'party' => $party->loadCount(['sales', 'purchases', 'payments']),
             'balance' => $this->ledger->partyBalance($party->id),
+            'openingBalanceSigned' => $this->openingSigned((float) ($party->opening_balance ?? 0), $party->opening_balance_side ?? 'dr'),
         ]);
     }
 
@@ -79,10 +85,12 @@ class PartyController extends Controller
 
         $query = Ledger::query()->where('party_id', $party->id);
 
-        $openingBalance = (clone $query)
+        $openingBase = $this->openingSigned((float) ($party->opening_balance ?? 0), $party->opening_balance_side ?? 'dr');
+
+        $openingBalance = $openingBase + ((clone $query)
             ->when($fromAd, fn ($builder) => $builder->whereDate('created_at', '<', $fromAd))
             ->selectRaw('COALESCE(SUM(dr_amount) - SUM(cr_amount), 0) as balance')
-            ->value('balance') ?? 0;
+            ->value('balance') ?? 0);
 
         $ledgerRows = (clone $query)
             ->when($fromAd, fn ($builder) => $builder->whereDate('created_at', '>=', $fromAd))
@@ -102,6 +110,23 @@ class PartyController extends Controller
                 'to_date_bs' => $filters['to_date_bs'] ?? null,
             ],
         ]);
+    }
+
+    public function updateOpeningBalance(Request $request, Party $party): RedirectResponse
+    {
+        $validated = $request->validate([
+            'opening_balance' => ['required', 'numeric', 'min:0'],
+            'opening_balance_side' => ['required', 'in:dr,cr'],
+        ]);
+
+        $party->update([
+            'opening_balance' => (float) $validated['opening_balance'],
+            'opening_balance_side' => $validated['opening_balance_side'],
+        ]);
+
+        return redirect()
+            ->route('parties.show', $party)
+            ->with('success', 'Opening balance updated successfully.');
     }
 
     private function attachReferenceText(Collection $ledgerRows): void
@@ -167,6 +192,11 @@ class PartyController extends Controller
                 number_format((float) $item->qty, 2)
             ))
             ->implode(', ');
+    }
+
+    private function openingSigned(float $amount, string $side): float
+    {
+        return $side === 'cr' ? -$amount : $amount;
     }
 
     public function destroy(Party $party): RedirectResponse

@@ -22,9 +22,11 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('parties', PartyController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
     Route::get('parties/{party}/ledger', [PartyController::class, 'ledgerStatement'])->name('parties.ledger');
+    Route::patch('parties/{party}/opening-balance', [PartyController::class, 'updateOpeningBalance'])->name('parties.opening-balance.update');
 
     Route::resource('accounts', AccountController::class)->only(['index', 'create', 'store', 'show']);
     Route::get('accounts/{account}/ledger', [AccountController::class, 'ledgerStatement'])->name('accounts.ledger');
+    Route::patch('accounts/{account}/opening-balance', [AccountController::class, 'updateOpeningBalance'])->name('accounts.opening-balance.update');
 
     Route::resource('sales', SaleController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
     Route::resource('purchases', PurchaseController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
