@@ -24,17 +24,18 @@ class LoginController extends Controller
         $guard = $this->auth->guard();
 
         $credentials = $request->validate([
-            'email' => ['required', 'string', 'email'],
+            'phone' => ['required', 'integer', 'digits:10'],
             'password' => ['required', 'string'],
         ]);
+        $credentials['phone'] = (int) $credentials['phone'];
 
         $remember = $request->boolean('remember');
 
         if (! $guard->attempt($credentials, $remember)) {
             return back()
-                ->withInput($request->only('email', 'remember'))
+                ->withInput($request->only('phone', 'remember'))
                 ->withErrors([
-                    'email' => 'The provided credentials do not match our records.',
+                    'phone' => 'The provided credentials do not match our records.',
                 ]);
         }
 

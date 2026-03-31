@@ -124,6 +124,8 @@ class SaleController extends Controller
     {
         $sale->load(['party', 'items', 'payments.account']);
         $sale->created_at_bs = DateHelper::adToBs($sale->created_at);
+        $sale->received_amount = (float) $sale->payments->where('type', 'received')->sum('amount');
+        $sale->remaining_amount = max(0, (float) $sale->total - $sale->received_amount);
 
         return view('sales.show', [
             'sale' => $sale,

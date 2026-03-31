@@ -124,6 +124,8 @@ class PurchaseController extends Controller
     {
         $purchase->load(['party', 'items', 'payments.account']);
         $purchase->created_at_bs = DateHelper::adToBs($purchase->created_at);
+        $purchase->paid_amount = (float) $purchase->payments->where('type', 'given')->sum('amount');
+        $purchase->remaining_amount = max(0, (float) $purchase->total - $purchase->paid_amount);
 
         return view('purchases.show', [
             'purchase' => $purchase,

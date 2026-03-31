@@ -11,41 +11,32 @@ class CreateUserCommand extends Command
 {
     protected $signature = 'user:create';
 
-    protected $description = 'Create an application user for login';
+    protected $description = 'Create an application user for phone-based login';
 
     public function handle(): int
     {
         $name = trim((string) $this->ask('Full name'));
-        $email = strtolower(trim((string) $this->ask('Email')));
-        $password = (string) $this->secret('Password (minimum 8 characters)');
-        $passwordConfirmation = (string) $this->secret('Confirm password');
+        $phone = trim((string) $this->ask('10-digit phone number (login username)'));
+        $password = (string) $this->ask('Password (minimum 8 characters)');
 
         $validator = Validator::make([
             'name' => $name,
-            'email' => $email,
+            'phone' => $phone,
             'password' => $password,
-            'password_confirmation' => $passwordConfirmation,
         ], [
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'phone' => ['required', 'integer', 'digits:10', 'unique:users,phone'],
+            'password' => ['required', 'string', 'min:8'],
         ]);
-
-        if ($validator->fails()) {
-            foreach ($validator->errors()->all() as $error) {
-                $this->error($error);
-            }
-
-            return self::FAILURE;
-        }
 
         $user = User::query()->create([
             'name' => $name,
-            'email' => $email,
+            'phone' => (int) $phone,
+            'email' => "admin@ledger.local",
             'password' => Hash::make($password),
         ]);
 
-        $this->info("User created successfully: {$user->email}");
+        $this->info("User created successfully. Phone username: {$user->phone}");
 
         return self::SUCCESS;
     }

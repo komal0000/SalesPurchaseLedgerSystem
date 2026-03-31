@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use InvalidArgumentException;
+use LogicException;
 
 class Ledger extends Model
 {
@@ -44,6 +45,14 @@ class Ledger extends Model
             if ($hasDr === $hasCr) {
                 throw new InvalidArgumentException('Ledger row must contain exactly one side.');
             }
+        });
+
+        static::updating(function (): void {
+            throw new LogicException('Ledger entries cannot be updated.');
+        });
+
+        static::deleting(function (): void {
+            throw new LogicException('Ledger entries cannot be deleted.');
         });
     }
 

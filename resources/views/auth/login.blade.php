@@ -25,7 +25,7 @@
                     <div class="mb-8">
                         <p class="text-sm uppercase tracking-[0.2em] text-indigo-600">Welcome back</p>
                         <h2 class="mt-2 text-2xl font-semibold text-slate-900">Sign in to LedgerApp</h2>
-                        <p class="mt-2 text-sm text-slate-500">Only authorized users can access the system.</p>
+                        <p class="mt-2 text-sm text-slate-500">Use your phone number username to access the system.</p>
                     </div>
 
                     @if ($errors->any())
@@ -37,17 +37,22 @@
                     <form method="POST" action="{{ route('login.store') }}" class="space-y-5">
                         @csrf
                         <div>
-                            <label for="email" class="mb-2 block text-sm font-medium text-slate-700">Email</label>
+                            <label for="phone" class="mb-2 block text-sm font-medium text-slate-700">Phone Number</label>
                             <input
-                                id="email"
-                                type="email"
-                                name="email"
-                                value="{{ old('email') }}"
+                                id="phone"
+                                type="tel"
+                                name="phone"
+                                value="{{ old('phone') }}"
                                 required
                                 autofocus
-                                autocomplete="email"
+                                autocomplete="username"
+                                inputmode="numeric"
+                                pattern="[0-9]{10}"
+                                minlength="10"
+                                maxlength="10"
+                                oninput="this.value = this.value.replace(/\D/g, '').slice(0, 10)"
                                 class="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
-                                placeholder="you@example.com"
+                                placeholder="98XXXXXXXX"
                             >
                         </div>
 
