@@ -20,6 +20,8 @@
             ['label' => 'Sales', 'route' => 'sales.index', 'active' => 'sales.*'],
             ['label' => 'Purchases', 'route' => 'purchases.index', 'active' => 'purchases.*'],
             ['label' => 'Payments', 'route' => 'payments.index', 'active' => 'payments.*'],
+            ['label' => 'Cashbook', 'route' => 'reports.cashbook', 'active' => 'reports.cashbook'],
+            ['label' => 'Profit / Loss', 'route' => 'reports.profit-loss', 'active' => 'reports.profit-loss'],
         ];
 
         $routeName = request()->route()?->getName();
@@ -30,10 +32,11 @@
         ];
 
         if (! empty($routeSegments) && $routeSegments[0] !== 'dashboard') {
-            $resource = $routeSegments[0];
-            $resourceNav = collect($navigationItems)->first(fn (array $item) => str_starts_with($item['active'], $resource));
-            $resourceLabel = $resourceNav['label'] ?? ucfirst(str_replace('_', ' ', $resource));
-            $resourceRoute = $resourceNav['route'] ?? 'dashboard';
+            $currentNav = collect($navigationItems)
+                ->first(fn (array $item) => request()->routeIs($item['active']));
+
+            $resourceLabel = $currentNav['label'] ?? ucfirst(str_replace('_', ' ', $routeSegments[0]));
+            $resourceRoute = $currentNav['route'] ?? 'dashboard';
 
             $breadcrumbs[] = ['label' => $resourceLabel, 'url' => route($resourceRoute)];
 

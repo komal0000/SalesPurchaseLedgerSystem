@@ -60,24 +60,24 @@
                     <h2 class="font-semibold text-gray-900">Items</h2>
                 </div>
 
-                <div class="grid gap-2 border-b border-gray-300 bg-gray-50 px-4 py-3 md:grid-cols-12">
-                    <div class="md:col-span-5">
+                <div class="grid grid-cols-12 gap-2 border-b border-gray-300 bg-gray-50 px-4 py-3">
+                    <div class="col-span-12 md:col-span-5">
                         <label class="text-xs font-semibold uppercase tracking-wide text-gray-600">Particular</label>
-                        <input x-model="draftItem.particular" x-ref="itemParticular" @keydown.enter.prevent="focus('itemQty')" type="text" class="mt-1 w-full rounded border border-gray-300 px-2 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200" placeholder="Item/Particular">
+                        <input x-model="draftItem.particular" x-ref="itemParticular" @keydown.enter.prevent="focus('itemQty')" enterkeyhint="next" type="text" class="mt-1 w-full rounded border border-gray-300 px-2 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200" placeholder="Item/Particular">
                     </div>
-                    <div class="md:col-span-2">
+                    <div class="col-span-4 md:col-span-2">
                         <label class="text-xs font-semibold uppercase tracking-wide text-gray-600">Qty</label>
-                        <input x-model.number="draftItem.qty" x-ref="itemQty" @input="updateDraftItemTotal" @keydown.enter.prevent="focus('itemPrice')" type="number" step="0.01" min="0.01" class="mt-1 w-full rounded border border-gray-300 px-2 py-2 text-right text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200">
+                        <input x-model.number="draftItem.qty" x-ref="itemQty" @input="updateDraftItemTotal" @keydown.enter.prevent="focus('itemPrice')" enterkeyhint="next" type="number" step="0.01" min="0.01" class="mt-1 w-full rounded border border-gray-300 px-2 py-2 text-right text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200">
                     </div>
-                    <div class="md:col-span-2">
+                    <div class="col-span-4 md:col-span-2">
                         <label class="text-xs font-semibold uppercase tracking-wide text-gray-600">Rate</label>
-                        <input x-model.number="draftItem.price" x-ref="itemPrice" @input="updateDraftItemTotal" @keydown.enter.prevent="commitItem" type="number" step="0.01" min="0" class="mt-1 w-full rounded border border-gray-300 px-2 py-2 text-right text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200">
+                        <input x-model.number="draftItem.price" x-ref="itemPrice" @input="updateDraftItemTotal" @keydown.enter.prevent="commitItem" enterkeyhint="done" type="number" step="0.01" min="0" class="mt-1 w-full rounded border border-gray-300 px-2 py-2 text-right text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200">
                     </div>
-                    <div class="md:col-span-2">
+                    <div class="col-span-4 md:col-span-2">
                         <label class="text-xs font-semibold uppercase tracking-wide text-gray-600">Total</label>
                         <input :value="currency(draftItem.total)" type="text" readonly class="mt-1 w-full rounded border border-gray-300 bg-gray-100 px-2 py-2 text-right text-sm font-mono text-gray-700">
                     </div>
-                    <div class="md:col-span-1 md:flex md:items-end">
+                    <div class="col-span-12 md:col-span-1 md:flex md:items-end">
                         <button type="button" @click="commitItem" class="mt-1 w-full rounded bg-indigo-600 px-2 py-2 text-sm font-semibold text-white hover:bg-indigo-700">ADD</button>
                     </div>
                 </div>
@@ -120,8 +120,8 @@
                     <h2 class="font-semibold text-gray-900">Payment</h2>
                 </div>
 
-                <div class="grid gap-2 border-b border-gray-300 bg-gray-50 px-4 py-3 md:grid-cols-12">
-                    <div class="md:col-span-4">
+                <div class="grid grid-cols-12 gap-2 border-b border-gray-300 bg-gray-50 px-4 py-3">
+                    <div class="col-span-6 md:col-span-4">
                         <label class="text-xs font-semibold uppercase tracking-wide text-gray-600">Payment Via</label>
                         <select x-model="draftPayment.account_id" x-ref="paymentAccount" @keydown.enter.prevent="focus('paymentAmount')" class="mt-1 w-full rounded border border-gray-300 px-2 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200">
                             @if (! $defaultCashAccountId)
@@ -132,15 +132,16 @@
                             @endforeach
                         </select>
                     </div>
-                    <div class="md:col-span-3">
+                    <div class="col-span-6 md:col-span-3">
                         <label class="text-xs font-semibold uppercase tracking-wide text-gray-600">Payment Amount</label>
-                        <input x-model.number="draftPayment.amount" x-ref="paymentAmount" @keydown.enter.prevent="focus('paymentCheque')" type="number" step="0.01" min="0.01" class="mt-1 w-full rounded border border-gray-300 px-2 py-2 text-right text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200" placeholder="0.00">
+                        <input x-model.number="draftPayment.amount" x-ref="paymentAmount" @keydown.enter.prevent="focus('paymentCheque')" enterkeyhint="next" type="number" step="0.01" min="0.01" class="mt-1 w-full rounded border border-gray-300 px-2 py-2 text-right text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200" placeholder="0.00">
                     </div>
-                    <div class="md:col-span-3">
+                    <div class="col-span-8 md:col-span-3">
                         <label class="text-xs font-semibold uppercase tracking-wide text-gray-600">Cheque Number</label>
-                        <input x-model="draftPayment.cheque_number" x-ref="paymentCheque" @keydown.enter.prevent="commitPayment" type="text" maxlength="50" class="mt-1 w-full rounded border border-gray-300 px-2 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200" placeholder="Optional">
+                        <input x-model="draftPayment.cheque_number" x-ref="paymentCheque" @keydown.enter.prevent="commitPayment" enterkeyhint="done" type="text" maxlength="50" class="mt-1 w-full rounded border border-gray-300 px-2 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200" placeholder="Optional">
                     </div>
-                    <div class="md:col-span-2 md:flex md:items-end">
+                    <div class="col-span-4 md:col-span-2">
+                        <label class="text-xs font-semibold uppercase tracking-wide text-transparent">Action</label>
                         <button type="button" @click="commitPayment" class="mt-1 w-full rounded bg-indigo-600 px-2 py-2 text-sm font-semibold text-white hover:bg-indigo-700">ADD</button>
                     </div>
                 </div>

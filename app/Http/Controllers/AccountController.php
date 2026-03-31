@@ -2,12 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\DateHelper;
 use App\Models\Account;
 use App\Models\Ledger;
+use App\Models\Payment;
+use App\Models\Purchase;
+use App\Models\Sale;
 use App\Services\LedgerService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class AccountController extends Controller
 {
@@ -54,15 +61,111 @@ class AccountController extends Controller
         ]);
     }
 
-    public function ledgerStatement(Account $account): View
+    public function ledgerStatement(Request $request, Account $account): View
     {
+        $filters = $request->validate([
+            'from_date_bs' => ['nullable', 'regex:/^\d{4}-\d{2}-\d{2}$/'],
+            'to_date_bs' => ['nullable', 'regex:/^\d{4}-\d{2}-\d{2}$/'],
+        ]);
+
+        try {
+            [$fromAd, $toAd] = DateHelper::getAdRangeFromBsFilters($filters['from_date_bs'] ?? null, $filters['to_date_bs'] ?? null);
+        } catch (Throwable $exception) {
+            throw ValidationException::withMessages([
+                'from_date_bs' => $exception->getMessage(),
+                'to_date_bs' => $exception->getMessage(),
+            ]);
+        }
+
+        $query = Ledger::query()->where('account_id', $account->id);
+
+        $openingBalance = (clone $query)
+            ->when($fromAd, fn ($builder) => $builder->whereDate('created_at', '<', $fromAd))
+            ->selectRaw('COALESCE(SUM(dr_amount) - SUM(cr_amount), 0) as balance')
+            ->value('balance') ?? 0;
+
+        $ledgerRows = (clone $query)
+            ->when($fromAd, fn ($builder) => $builder->whereDate('created_at', '>=', $fromAd))
+            ->when($toAd, fn ($builder) => $builder->whereDate('created_at', '<=', $toAd))
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get();
+
+        $this->attachReferenceText($ledgerRows);
+
         return view('accounts.ledger', [
             'account' => $account,
-            'ledgerRows' => Ledger::query()
-                ->where('account_id', $account->id)
-                ->orderBy('created_at')
-                ->orderBy('id')
-                ->get(),
+            'ledgerRows' => $ledgerRows,
+            'openingBalance' => (float) $openingBalance,
+            'filters' => [
+                'from_date_bs' => $filters['from_date_bs'] ?? null,
+                'to_date_bs' => $filters['to_date_bs'] ?? null,
+            ],
         ]);
+    }
+
+    private function attachReferenceText(Collection $ledgerRows): void
+    {
+        $saleMap = Sale::query()
+            ->with('items:id,sale_id,particular,qty,price')
+            ->whereIn('id', $ledgerRows->where('ref_table', 'sales')->pluck('ref_id')->unique())
+            ->get()
+            ->keyBy('id');
+
+        $purchaseMap = Purchase::query()
+            ->with('items:id,purchase_id,particular,qty,price')
+            ->whereIn('id', $ledgerRows->where('ref_table', 'purchases')->pluck('ref_id')->unique())
+            ->get()
+            ->keyBy('id');
+
+        $paymentMap = Payment::query()
+            ->with('party:id,name')
+            ->whereIn('id', $ledgerRows->where('ref_table', 'payments')->pluck('ref_id')->unique())
+            ->get()
+            ->keyBy('id');
+
+        foreach ($ledgerRows as $row) {
+            if ($row->ref_table === 'sales') {
+                $sale = $saleMap->get($row->ref_id);
+                $row->reference_text = $sale
+                    ? 'Sale / ' . $this->itemSummary($sale->items)
+                    : 'Sale / ' . $row->ref_id;
+                continue;
+            }
+
+            if ($row->ref_table === 'purchases') {
+                $purchase = $purchaseMap->get($row->ref_id);
+                $row->reference_text = $purchase
+                    ? 'Purchase / ' . $this->itemSummary($purchase->items)
+                    : 'Purchase / ' . $row->ref_id;
+                continue;
+            }
+
+            if ($row->ref_table === 'payments') {
+                $payment = $paymentMap->get($row->ref_id);
+                $row->reference_text = $payment
+                    ? 'Payment / ' . ($payment->party?->name ?? 'Unknown Party')
+                    : 'Payment / ' . $row->ref_id;
+                continue;
+            }
+
+            $row->reference_text = ucfirst($row->ref_table) . ' / ' . $row->ref_id;
+        }
+    }
+
+    private function itemSummary(Collection $items): string
+    {
+        if ($items->isEmpty()) {
+            return 'No items';
+        }
+
+        return $items
+            ->map(fn ($item) => sprintf(
+                '%s @ %s * %s',
+                $item->particular,
+                number_format((float) $item->price, 2),
+                number_format((float) $item->qty, 2)
+            ))
+            ->implode(', ');
     }
 }
