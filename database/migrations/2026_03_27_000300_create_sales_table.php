@@ -9,8 +9,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('sales', function (Blueprint $table) {
-            $table->uuid('id')->primary();
-            $table->foreignUuid('party_id')->constrained('parties');
+            $table->id();
+            $table->foreignId('party_id')->constrained('parties');
             $table->decimal('total', 15, 2);
             $table->timestamps();
             $table->softDeletes();

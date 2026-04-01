@@ -21,7 +21,7 @@ class PurchaseController extends Controller
     public function index(Request $request): View
     {
         $filters = $request->validate([
-            'party_id' => ['nullable', 'uuid', 'exists:parties,id'],
+            'party_id' => ['nullable', 'integer', 'exists:parties,id'],
             'from_date_bs' => ['nullable', 'regex:/^\d{4}-\d{2}-\d{2}$/'],
             'to_date_bs' => ['nullable', 'regex:/^\d{4}-\d{2}-\d{2}$/'],
         ]);
@@ -118,13 +118,13 @@ class PurchaseController extends Controller
             ->all();
 
         $validated = validator($payload, [
-            'party_id' => ['required', 'uuid', 'exists:parties,id'],
+            'party_id' => ['required', 'integer', 'exists:parties,id'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.particular' => ['required', 'string', 'max:255'],
             'items.*.qty' => ['required', 'numeric', 'min:0.01'],
             'items.*.price' => ['required', 'numeric', 'min:0'],
             'payments' => ['nullable', 'array'],
-            'payments.*.account_id' => ['required', 'uuid', 'exists:accounts,id'],
+            'payments.*.account_id' => ['required', 'integer', 'exists:accounts,id'],
             'payments.*.amount' => ['required', 'numeric', 'min:0.01'],
             'payments.*.cheque_number' => ['nullable', 'string', 'max:50'],
         ])->validate();

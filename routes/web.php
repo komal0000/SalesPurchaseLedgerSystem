@@ -3,6 +3,7 @@
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeSalaryController;
 use App\Http\Controllers\PartyController;
 use App\Http\Controllers\PaymentController;
@@ -28,6 +29,8 @@ Route::middleware('auth')->group(function () {
     Route::resource('accounts', AccountController::class)->only(['index', 'create', 'store', 'show']);
     Route::get('accounts/{account}/ledger', [AccountController::class, 'ledgerStatement'])->name('accounts.ledger');
     Route::patch('accounts/{account}/opening-balance', [AccountController::class, 'updateOpeningBalance'])->name('accounts.opening-balance.update');
+
+    Route::resource('employees', EmployeeController::class)->only(['index', 'create', 'store', 'show']);
 
     Route::resource('sales', SaleController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
     Route::resource('purchases', PurchaseController::class)->only(['index', 'create', 'store', 'show', 'destroy']);

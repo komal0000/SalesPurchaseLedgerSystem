@@ -136,7 +136,7 @@ class LedgerFlowsTest extends TestCase
             'dr_amount' => 100,
             'cr_amount' => 0,
             'type' => 'sale',
-            'ref_id' => '11111111-1111-1111-1111-111111111111',
+            'ref_id' => 111111,
             'ref_table' => 'sales',
         ]);
 
@@ -155,7 +155,7 @@ class LedgerFlowsTest extends TestCase
             'dr_amount' => 100,
             'cr_amount' => 0,
             'type' => 'sale',
-            'ref_id' => '22222222-2222-2222-2222-222222222222',
+            'ref_id' => 222222,
             'ref_table' => 'sales',
         ]);
 

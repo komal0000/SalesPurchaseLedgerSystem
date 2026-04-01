@@ -19,7 +19,7 @@ class ReportController extends Controller
     public function cashbook(Request $request): View
     {
         $filters = $request->validate([
-            'account_id' => ['nullable', 'uuid', 'exists:accounts,id'],
+            'account_id' => ['nullable', 'integer', 'exists:accounts,id'],
             'from_date_bs' => ['nullable', 'regex:/^\d{4}-\d{2}-\d{2}$/'],
             'to_date_bs' => ['nullable', 'regex:/^\d{4}-\d{2}-\d{2}$/'],
         ]);
@@ -179,7 +179,7 @@ class ReportController extends Controller
         ]);
     }
 
-    private function openingBalanceBase(Collection $cashAccounts, ?string $selectedAccountId): float
+    private function openingBalanceBase(Collection $cashAccounts, ?int $selectedAccountId): float
     {
         $accounts = $selectedAccountId
             ? $cashAccounts->where('id', $selectedAccountId)

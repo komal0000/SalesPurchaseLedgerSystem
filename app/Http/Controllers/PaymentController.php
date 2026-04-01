@@ -23,8 +23,8 @@ class PaymentController extends Controller
     public function index(Request $request): View
     {
         $filters = $request->validate([
-            'party_id' => ['nullable', 'uuid', 'exists:parties,id'],
-            'account_id' => ['nullable', 'uuid', 'exists:accounts,id'],
+            'party_id' => ['nullable', 'integer', 'exists:parties,id'],
+            'account_id' => ['nullable', 'integer', 'exists:accounts,id'],
             'type' => ['nullable', 'in:received,given'],
             'keyword' => ['nullable', 'string', 'max:80'],
             'from_date_bs' => ['nullable', 'regex:/^\d{4}-\d{2}-\d{2}$/'],
@@ -126,12 +126,12 @@ class PaymentController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'party_id' => ['required', 'uuid', 'exists:parties,id'],
+            'party_id' => ['required', 'integer', 'exists:parties,id'],
             'amount' => ['required', 'numeric', 'min:0.01'],
-            'account_id' => ['required', 'uuid', 'exists:accounts,id'],
+            'account_id' => ['required', 'integer', 'exists:accounts,id'],
             'cheque_number' => ['nullable', 'string', 'max:50'],
-            'sale_id' => ['nullable', 'uuid', 'exists:sales,id'],
-            'purchase_id' => ['nullable', 'uuid', 'exists:purchases,id'],
+            'sale_id' => ['nullable', 'integer', 'exists:sales,id'],
+            'purchase_id' => ['nullable', 'integer', 'exists:purchases,id'],
         ]);
 
         if (!empty($validated['sale_id']) && !empty($validated['purchase_id'])) {

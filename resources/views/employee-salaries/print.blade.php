@@ -27,8 +27,9 @@
         <div class="header">
             <div>
                 <h1 class="title">Employee Salary Slip</h1>
-                <p class="muted">{{ $salary->employee_name }}{{ $salary->employee_code ? ' • ' . $salary->employee_code : '' }}</p>
+                <p class="muted">{{ $salary->party?->name ?? $salary->employee_name }}{{ ($salary->party?->phone ?? $salary->employee_code) ? ' • ' . ($salary->party?->phone ?? $salary->employee_code) : '' }}</p>
                 <p class="muted">Month: {{ $salary->salary_month }} | BS {{ $salary->salary_date_bs }} | AD {{ $salary->salary_date->format('d M Y') }}</p>
+                <p class="muted">Party: {{ $salary->party?->name ?? '-' }}</p>
             </div>
             <div class="muted">Generated: {{ now()->format('d M Y h:i A') }}</div>
         </div>
@@ -47,12 +48,31 @@
                     <td>Deduction</td>
                     <td class="amount">{{ number_format((float) $salary->deduction, 2) }}</td>
                 </tr>
+                <tr>
+                    <td>Leave Days</td>
+                    <td class="amount">{{ number_format((float) $salary->leave_days, 2) }}</td>
+                </tr>
+                <tr>
+                    <td>Overtime Days</td>
+                    <td class="amount">{{ number_format((float) $salary->overtime_days, 2) }}</td>
+                </tr>
                 <tr class="total">
                     <td>Net Salary</td>
                     <td class="amount">{{ number_format((float) $salary->net_salary, 2) }}</td>
                 </tr>
             </tbody>
         </table>
+
+        <div class="remarks">
+            <strong>Expense Status:</strong>
+            <div>
+                @if ($salary->expense_payment_id)
+                    Posted to {{ $salary->account?->name ?? '-' }} (Payment ID: {{ $salary->expense_payment_id }})
+                @else
+                    Not posted as expense
+                @endif
+            </div>
+        </div>
 
         @if ($salary->remarks)
             <div class="remarks">

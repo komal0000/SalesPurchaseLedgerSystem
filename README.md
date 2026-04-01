@@ -9,7 +9,7 @@ This repo contains **prompt skills** — structured guidance files you paste int
 
 | Skill | File | Use When |
 |---|---|---|
-| 🏗️ Laravel Setup | `laravel-setup/SKILL.md` | Scaffolding migrations, models, UUIDs |
+| 🏗️ Laravel Setup | `laravel-setup/SKILL.md` | Scaffolding migrations, models, normal auto-increment IDs |
 | 🔥 Ledger Engine | `ledger-engine/SKILL.md` | Writing ledger entries (the core) |
 | 💸 Transactions | `transactions/SKILL.md` | Sale, Purchase, Payment flows |
 | 🌐 API Design | `api-design/SKILL.md` | Building REST controllers & resources |

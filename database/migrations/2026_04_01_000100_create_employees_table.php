@@ -8,17 +8,21 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('purchases', function (Blueprint $table) {
+        Schema::create('employees', function (Blueprint $table) {
             $table->id();
+            $table->string('name');
+            $table->string('code')->nullable();
             $table->foreignId('party_id')->constrained('parties');
-            $table->decimal('total', 15, 2);
+            $table->decimal('salary', 15, 2)->default(0);
             $table->timestamps();
-            $table->softDeletes();
+
+            $table->index(['name']);
+            $table->unique(['code']);
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('purchases');
+        Schema::dropIfExists('employees');
     }
 };

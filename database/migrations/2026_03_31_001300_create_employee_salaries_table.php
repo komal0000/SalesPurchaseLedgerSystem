@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('employee_salaries', function (Blueprint $table) {
-            $table->uuid('id')->primary();
+            $table->id();
             $table->string('employee_name');
             $table->string('employee_code')->nullable();
             $table->date('salary_date');

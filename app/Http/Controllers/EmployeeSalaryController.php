@@ -3,16 +3,25 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\DateHelper;
+use App\Models\Account;
+use App\Models\Employee;
+use App\Models\EmployeeLeaveOvertime;
 use App\Models\EmployeeSalary;
+use App\Services\PaymentService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use InvalidArgumentException;
 use Throwable;
 
 class EmployeeSalaryController extends Controller
 {
+    public function __construct(private readonly PaymentService $paymentService) {}
+
     public function index(Request $request): View
     {
         $filters = $request->validate([
@@ -36,7 +45,21 @@ class EmployeeSalaryController extends Controller
 
         if ($hasSearched) {
             $rows = EmployeeSalary::query()
-                ->when($filters['employee_name'] ?? null, fn ($query, $name) => $query->where('employee_name', 'like', '%' . trim((string) $name) . '%'))
+                ->with('party')
+                ->when($filters['employee_name'] ?? null, function ($query, $name) {
+                    $term = '%' . trim((string) $name) . '%';
+
+                    $query->where(function ($subQuery) use ($term) {
+                        $subQuery
+                            ->where('employee_name', 'like', $term)
+                            ->orWhere('employee_code', 'like', $term)
+                            ->orWhereHas('party', function ($partyQuery) use ($term) {
+                                $partyQuery
+                                    ->where('name', 'like', $term)
+                                    ->orWhere('phone', 'like', $term);
+                            });
+                    });
+                })
                 ->when($fromAd, fn ($query) => $query->whereDate('salary_date', '>=', $fromAd))
                 ->when($toAd, fn ($query) => $query->whereDate('salary_date', '<=', $toAd))
                 ->orderByDesc('salary_date')
@@ -70,54 +93,192 @@ class EmployeeSalaryController extends Controller
         ]);
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
+        $filters = $request->validate([
+            'salary_month_bs' => ['nullable', 'regex:/^\d{4}-\d{2}$/'],
+        ]);
+
+        $salaryMonthBs = $filters['salary_month_bs'] ?? substr(DateHelper::getCurrentBS(), 0, 7);
+
+        try {
+            [$bsYear, $bsMonth] = $this->parseBsMonth($salaryMonthBs);
+        } catch (InvalidArgumentException $exception) {
+            throw ValidationException::withMessages([
+                'salary_month_bs' => $exception->getMessage(),
+            ]);
+        }
+
+        $employees = Employee::query()
+            ->select('employees.*')
+            ->join('parties', 'parties.id', '=', 'employees.party_id')
+            ->with('party')
+            ->orderBy('parties.name')
+            ->get();
+
+        $leaveRows = EmployeeLeaveOvertime::query()
+            ->where('bs_year', $bsYear)
+            ->where('bs_month', $bsMonth)
+            ->get()
+            ->keyBy('employee_id');
+
+        $accounts = Account::query()
+            ->orderByRaw("case when type = 'cash' then 0 else 1 end")
+            ->orderBy('name')
+            ->get();
+
         return view('employee-salaries.create', [
-            'todayBs' => DateHelper::getCurrentBS(),
+            'salaryMonthBs' => $salaryMonthBs,
+            'salaryDateBs' => DateHelper::formattedDate($bsYear, $bsMonth, 1),
+            'sheetRows' => $this->buildSheetRows($employees, $leaveRows),
+            'accounts' => $accounts,
+            'selectedAccountId' => old('account_id', $accounts->firstWhere('type', 'cash')?->id),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'employee_name' => ['required', 'string', 'max:255'],
-            'employee_code' => ['nullable', 'string', 'max:100'],
+            'salary_month_bs' => ['required', 'regex:/^\d{4}-\d{2}$/'],
             'salary_date_bs' => ['required', 'regex:/^\d{4}-\d{2}-\d{2}$/'],
-            'basic_salary' => ['required', 'numeric', 'min:0'],
-            'allowance' => ['nullable', 'numeric', 'min:0'],
-            'deduction' => ['nullable', 'numeric', 'min:0'],
+            'account_id' => ['required', 'integer', 'exists:accounts,id'],
+            'leaves' => ['nullable', 'array'],
+            'leaves.*' => ['nullable', 'numeric', 'min:0'],
+            'overtimes' => ['nullable', 'array'],
+            'overtimes.*' => ['nullable', 'numeric', 'min:0'],
+            'save_as_expense' => ['nullable', 'boolean'],
             'remarks' => ['nullable', 'string', 'max:1000'],
         ]);
 
         try {
-            $validated['salary_date'] = DateHelper::bsToAd($validated['salary_date_bs']);
+            [$bsYear, $bsMonth] = $this->parseBsMonth($validated['salary_month_bs']);
+            $salaryDateAd = DateHelper::bsToAd($validated['salary_date_bs']);
         } catch (Throwable $exception) {
             throw ValidationException::withMessages([
+                'salary_month_bs' => $exception->getMessage(),
                 'salary_date_bs' => $exception->getMessage(),
             ]);
         }
 
-        $validated['salary_month'] = substr($validated['salary_date_bs'], 0, 7);
+        if (!str_starts_with($validated['salary_date_bs'], $validated['salary_month_bs'] . '-')) {
+            throw ValidationException::withMessages([
+                'salary_date_bs' => 'Salary date must be inside the selected BS month.',
+            ]);
+        }
 
-        $basic = (float) $validated['basic_salary'];
-        $allowance = (float) ($validated['allowance'] ?? 0);
-        $deduction = (float) ($validated['deduction'] ?? 0);
+        $saveAsExpense = (bool) ($validated['save_as_expense'] ?? true);
 
-        $validated['allowance'] = $allowance;
-        $validated['deduction'] = $deduction;
-        $validated['net_salary'] = $basic + $allowance - $deduction;
+        $employees = Employee::query()
+            ->select('employees.*')
+            ->join('parties', 'parties.id', '=', 'employees.party_id')
+            ->with('party')
+            ->orderBy('parties.name')
+            ->get();
 
-        unset($validated['salary_date_bs']);
+        if ($employees->isEmpty()) {
+            throw ValidationException::withMessages([
+                'salary_month_bs' => 'Please create employees before saving a salary sheet.',
+            ]);
+        }
 
-        $salary = EmployeeSalary::query()->create($validated);
+        if ($saveAsExpense) {
+            $alreadyPosted = EmployeeSalary::query()
+                ->where('salary_month', $validated['salary_month_bs'])
+                ->whereIn('employee_id', $employees->pluck('id'))
+                ->whereNotNull('expense_payment_id')
+                ->pluck('employee_name')
+                ->all();
+
+            if (!empty($alreadyPosted)) {
+                throw ValidationException::withMessages([
+                    'salary_month_bs' => 'Expense already posted for this month: ' . implode(', ', $alreadyPosted),
+                ]);
+            }
+        }
+
+        $result = DB::transaction(function () use ($validated, $salaryDateAd, $bsYear, $bsMonth, $employees, $saveAsExpense) {
+            $savedSalaries = collect();
+            $totalNet = 0.0;
+
+            foreach ($employees as $employee) {
+                $leaveDays = (float) ($validated['leaves'][$employee->id] ?? 0);
+                $overtimeDays = (float) ($validated['overtimes'][$employee->id] ?? 0);
+
+                EmployeeLeaveOvertime::query()->updateOrCreate(
+                    [
+                        'employee_id' => $employee->id,
+                        'bs_year' => $bsYear,
+                        'bs_month' => $bsMonth,
+                    ],
+                    [
+                        'leave_days' => $leaveDays,
+                        'overtime_days' => $overtimeDays,
+                    ]
+                );
+
+                $amounts = $this->calculateSalary((float) $employee->salary, $leaveDays, $overtimeDays);
+
+                $salary = EmployeeSalary::query()->updateOrCreate(
+                    [
+                        'employee_id' => $employee->id,
+                        'salary_month' => $validated['salary_month_bs'],
+                    ],
+                    [
+                        'employee_name' => $employee->party?->name,
+                        'employee_code' => $employee->party?->phone,
+                        'party_id' => $employee->party_id,
+                        'account_id' => $validated['account_id'],
+                        'salary_date' => $salaryDateAd,
+                        'basic_salary' => $amounts['basic_salary'],
+                        'allowance' => $amounts['allowance'],
+                        'deduction' => $amounts['deduction'],
+                        'leave_days' => $leaveDays,
+                        'overtime_days' => $overtimeDays,
+                        'net_salary' => $amounts['net_salary'],
+                        'remarks' => $validated['remarks'] ?? null,
+                    ]
+                );
+
+                if ($saveAsExpense) {
+                    $payment = $this->paymentService->create([
+                        'party_id' => $employee->party_id,
+                        'amount' => $amounts['net_salary'],
+                        'type' => 'given',
+                        'account_id' => $validated['account_id'],
+                        'cheque_number' => null,
+                        'sale_id' => null,
+                        'purchase_id' => null,
+                    ]);
+
+                    $salary->update([
+                        'expense_payment_id' => $payment->id,
+                        'expense_saved_at' => now(),
+                    ]);
+                }
+
+                $savedSalaries->push($salary);
+                $totalNet += (float) $amounts['net_salary'];
+            }
+
+            return [
+                'firstSalary' => $savedSalaries->first(),
+                'savedCount' => $savedSalaries->count(),
+                'totalNet' => $totalNet,
+            ];
+        });
+
+        $success = $saveAsExpense
+            ? sprintf('Salary sheet saved for %d employees and posted as expense. Total %.2f.', $result['savedCount'], $result['totalNet'])
+            : sprintf('Salary sheet saved for %d employees. Total %.2f.', $result['savedCount'], $result['totalNet']);
 
         return redirect()
-            ->route('employee-salaries.show', $salary)
-            ->with('success', 'Employee salary saved successfully.');
+            ->route('employee-salaries.show', ['employee_salary' => $result['firstSalary']])
+            ->with('success', $success);
     }
 
     public function show(EmployeeSalary $employeeSalary): View
     {
+        $employeeSalary->load(['employee', 'party', 'account', 'expensePayment.account']);
         $employeeSalary->salary_date_bs = DateHelper::adToBs($employeeSalary->salary_date);
 
         return view('employee-salaries.show', [
@@ -127,10 +288,65 @@ class EmployeeSalaryController extends Controller
 
     public function print(EmployeeSalary $employeeSalary): View
     {
+        $employeeSalary->load(['employee', 'party', 'account', 'expensePayment.account']);
         $employeeSalary->salary_date_bs = DateHelper::adToBs($employeeSalary->salary_date);
 
         return view('employee-salaries.print', [
             'salary' => $employeeSalary,
         ]);
+    }
+
+    private function parseBsMonth(string $salaryMonthBs): array
+    {
+        if (!preg_match('/^\d{4}-\d{2}$/', $salaryMonthBs)) {
+            throw new InvalidArgumentException('Salary month must be in YYYY-MM format.');
+        }
+
+        [$year, $month] = array_map('intval', explode('-', $salaryMonthBs));
+
+        if ($year < DateHelper::MIN_YEAR_BS || $year > DateHelper::MAX_YEAR_BS) {
+            throw new InvalidArgumentException('Salary month year is out of supported BS range.');
+        }
+
+        if ($month < 1 || $month > 12) {
+            throw new InvalidArgumentException('Salary month must be between 01 and 12.');
+        }
+
+        return [$year, $month];
+    }
+
+    private function buildSheetRows(Collection $employees, Collection $leaveRows): Collection
+    {
+        return $employees->map(function (Employee $employee) use ($leaveRows) {
+            $leaveDays = (float) ($leaveRows->get($employee->id)?->leave_days ?? 0);
+            $overtimeDays = (float) ($leaveRows->get($employee->id)?->overtime_days ?? 0);
+            $amounts = $this->calculateSalary((float) $employee->salary, $leaveDays, $overtimeDays);
+
+            return [
+                'employee' => $employee,
+                'leave_days' => $leaveDays,
+                'overtime_days' => $overtimeDays,
+                'daily_rate' => $amounts['daily_rate'],
+                'basic_salary' => $amounts['basic_salary'],
+                'allowance' => $amounts['allowance'],
+                'deduction' => $amounts['deduction'],
+                'net_salary' => $amounts['net_salary'],
+            ];
+        });
+    }
+
+    private function calculateSalary(float $basicSalary, float $leaveDays, float $overtimeDays): array
+    {
+        $dailyRate = round($basicSalary / 30, 2);
+        $allowance = round($dailyRate * $overtimeDays, 2);
+        $deduction = round($dailyRate * $leaveDays, 2);
+
+        return [
+            'daily_rate' => $dailyRate,
+            'basic_salary' => $basicSalary,
+            'allowance' => $allowance,
+            'deduction' => $deduction,
+            'net_salary' => round($basicSalary + $allowance - $deduction, 2),
+        ];
     }
 }

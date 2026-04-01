@@ -153,7 +153,7 @@ class PaymentService
 
 ### Sale / Purchase
 ```php
-'party_id'       => 'required|uuid|exists:parties,id',
+'party_id'       => 'required|integer|exists:parties,id',
 'items'          => 'required|array|min:1',
 'items.*.particular' => 'required|string|max:255',
 'items.*.qty'    => 'required|numeric|min:0.01',
@@ -162,12 +162,12 @@ class PaymentService
 
 ### Payment
 ```php
-'party_id'    => 'required|uuid|exists:parties,id',
+'party_id'    => 'required|integer|exists:parties,id',
 'amount'      => 'required|numeric|min:0.01',
 'type'        => 'required|in:received,given',
-'account_id'  => 'required|uuid|exists:accounts,id',
-'sale_id'     => 'nullable|uuid|exists:sales,id',
-'purchase_id' => 'nullable|uuid|exists:purchases,id',
+'account_id'  => 'required|integer|exists:accounts,id',
+'sale_id'     => 'nullable|integer|exists:sales,id',
+'purchase_id' => 'nullable|integer|exists:purchases,id',
 // Custom rule: sale_id and purchase_id cannot both be present
 ```
 

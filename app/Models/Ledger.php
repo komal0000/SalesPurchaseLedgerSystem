@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use InvalidArgumentException;
@@ -10,15 +9,9 @@ use LogicException;
 
 class Ledger extends Model
 {
-    use HasUuids;
-
     protected $table = 'ledger';
 
     protected $guarded = [];
-
-    public $incrementing = false;
-
-    protected $keyType = 'string';
 
     const UPDATED_AT = null;
 

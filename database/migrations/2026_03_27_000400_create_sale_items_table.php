@@ -9,8 +9,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('sale_items', function (Blueprint $table) {
-            $table->uuid('id')->primary();
-            $table->foreignUuid('sale_id')->constrained('sales');
+            $table->id();
+            $table->foreignId('sale_id')->constrained('sales');
             $table->string('particular');
             $table->decimal('qty', 15, 2);
             $table->decimal('price', 15, 2);
