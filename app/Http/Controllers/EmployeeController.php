@@ -3,13 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\Employee;
-use App\Models\Party;
+use App\Services\PartyCacheService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class EmployeeController extends Controller
 {
+    public function __construct(private readonly PartyCacheService $partyCache) {}
+
     public function index(Request $request): View
     {
         $filters = $request->validate([
@@ -47,10 +49,7 @@ class EmployeeController extends Controller
     public function create(): View
     {
         return view('employees.create', [
-            'parties' => Party::query()
-                ->whereDoesntHave('employees')
-                ->orderBy('name')
-                ->get(),
+            'parties' => $this->partyCache->unassignedForEmployees(),
         ]);
     }
 
@@ -62,6 +61,8 @@ class EmployeeController extends Controller
         ]);
 
         $employee = Employee::query()->create($validated);
+
+        $this->partyCache->refreshUnassigned();
 
         return redirect()
             ->route('employees.show', $employee)

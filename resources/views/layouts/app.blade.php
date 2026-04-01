@@ -30,6 +30,10 @@
             ['label' => 'Profit / Loss', 'route' => 'reports.profit-loss', 'active' => 'reports.profit-loss'],
         ];
 
+        if (auth()->check() && auth()->user()->isAdmin()) {
+            $navigationItems[] = ['label' => 'Settings', 'route' => 'settings.index', 'active' => 'settings.*'];
+        }
+
         $routeName = request()->route()?->getName();
         $routeSegments = $routeName ? explode('.', $routeName) : [];
 

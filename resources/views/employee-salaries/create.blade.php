@@ -27,6 +27,13 @@
             @csrf
             <input type="hidden" name="salary_month_bs" value="{{ old('salary_month_bs', $salaryMonthBs) }}">
 
+            <div class="rounded-xl border border-gray-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-800">
+                Leave fine per day: <span class="font-semibold">{{ number_format((float) $payrollSetting->leave_fine_per_day, 2) }}</span>
+                •
+                Overtime money per day: <span class="font-semibold">{{ number_format((float) $payrollSetting->overtime_money_per_day, 2) }}</span>
+                <span class="ml-2 text-indigo-600">(Change these from Dashboard as admin)</span>
+            </div>
+
             <div class="grid gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm md:grid-cols-3">
                 <div>
                     @include('partials.bs-date-selector', ['name' => 'salary_date_bs', 'label' => 'Salary Date (BS)', 'value' => old('salary_date_bs', $salaryDateBs)])
@@ -55,7 +62,8 @@
                             <tr>
                                 <th class="px-4 py-3 text-left">Employee</th>
                                 <th class="px-4 py-3 text-right">Base Salary</th>
-                                <th class="px-4 py-3 text-right">Daily Rate</th>
+                                <th class="px-4 py-3 text-right">Leave Fine / Day</th>
+                                <th class="px-4 py-3 text-right">Overtime Money / Day</th>
                                 <th class="px-4 py-3 text-right">Leave Days</th>
                                 <th class="px-4 py-3 text-right">Overtime Days</th>
                                 <th class="px-4 py-3 text-right">Leave Deduction</th>
@@ -73,7 +81,8 @@
                                 <tr
                                     class="border-t border-gray-100 hover:bg-gray-50/60"
                                     data-salary-row
-                                    data-daily-rate="{{ number_format((float) $row['daily_rate'], 4, '.', '') }}"
+                                    data-leave-rate="{{ number_format((float) $row['leave_fine_per_day'], 4, '.', '') }}"
+                                    data-overtime-rate="{{ number_format((float) $row['overtime_money_per_day'], 4, '.', '') }}"
                                     data-base-salary="{{ number_format((float) $row['basic_salary'], 2, '.', '') }}"
                                 >
                                     <td class="px-4 py-3">
@@ -81,7 +90,8 @@
                                         <p class="text-xs text-gray-500">{{ $employee->party?->phone ?? '-' }}</p>
                                     </td>
                                     <td class="px-4 py-3 text-right font-mono">{{ number_format((float) $row['basic_salary'], 2) }}</td>
-                                    <td class="px-4 py-3 text-right font-mono">{{ number_format((float) $row['daily_rate'], 2) }}</td>
+                                    <td class="px-4 py-3 text-right font-mono">{{ number_format((float) $row['leave_fine_per_day'], 2) }}</td>
+                                    <td class="px-4 py-3 text-right font-mono">{{ number_format((float) $row['overtime_money_per_day'], 2) }}</td>
                                     <td class="px-4 py-3 text-right">
                                         <input
                                             type="number"
@@ -108,7 +118,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="8" class="px-4 py-10 text-center text-gray-500">
+                                    <td colspan="9" class="px-4 py-10 text-center text-gray-500">
                                         No employees found. Create employees first to generate a salary sheet.
                                     </td>
                                 </tr>
@@ -146,7 +156,8 @@
             };
 
             rows.forEach((row) => {
-                const dailyRate = parseFloat(row.dataset.dailyRate || '0');
+                const leaveRate = parseFloat(row.dataset.leaveRate || '0');
+                const overtimeRate = parseFloat(row.dataset.overtimeRate || '0');
                 const baseSalary = parseFloat(row.dataset.baseSalary || '0');
                 const leaveInput = row.querySelector('.salary-leave-input');
                 const overtimeInput = row.querySelector('.salary-overtime-input');
@@ -158,8 +169,8 @@
                     const leaveDays = parseFloat(leaveInput?.value || '0') || 0;
                     const overtimeDays = parseFloat(overtimeInput?.value || '0') || 0;
 
-                    const deduction = dailyRate * leaveDays;
-                    const allowance = dailyRate * overtimeDays;
+                    const deduction = leaveRate * leaveDays;
+                    const allowance = overtimeRate * overtimeDays;
                     const net = baseSalary + allowance - deduction;
 
                     if (deductionCell) {

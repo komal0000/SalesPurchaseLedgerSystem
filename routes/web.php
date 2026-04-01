@@ -10,6 +10,7 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SaleController;
+use App\Http\Controllers\SettingsController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
@@ -21,6 +22,21 @@ Route::middleware('auth')->group(function () {
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
 
     Route::get('/', DashboardController::class)->name('dashboard');
+    Route::get('/settings', [SettingsController::class, 'index'])
+        ->middleware('admin')
+        ->name('settings.index');
+    Route::patch('/settings/payroll', [SettingsController::class, 'updatePayroll'])
+        ->middleware('admin')
+        ->name('settings.payroll.update');
+    Route::post('/settings/users', [SettingsController::class, 'storeUser'])
+        ->middleware('admin')
+        ->name('settings.users.store');
+    Route::patch('/settings/users/{user}', [SettingsController::class, 'updateUser'])
+        ->middleware('admin')
+        ->name('settings.users.update');
+    Route::delete('/settings/users/{user}', [SettingsController::class, 'destroyUser'])
+        ->middleware('admin')
+        ->name('settings.users.destroy');
 
     Route::resource('parties', PartyController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
     Route::get('parties/{party}/ledger', [PartyController::class, 'ledgerStatement'])->name('parties.ledger');

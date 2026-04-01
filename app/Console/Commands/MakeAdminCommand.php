@@ -4,20 +4,20 @@ namespace App\Console\Commands;
 
 use App\Models\User;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
-class CreateUserCommand extends Command
+class MakeAdminCommand extends Command
 {
-    protected $signature = 'user:create';
+    protected $signature = 'make:admin';
 
-    protected $description = 'Create an application user for phone-based login';
+    protected $description = 'Create an admin user (role = 0) for phone-based login';
 
     public function handle(): int
     {
         $name = trim((string) $this->ask('Full name'));
         $phone = trim((string) $this->ask('10-digit phone number (login username)'));
         $password = (string) $this->ask('Password (minimum 8 characters)');
+
 
         $validator = Validator::make([
             'name' => $name,
@@ -29,14 +29,23 @@ class CreateUserCommand extends Command
             'password' => ['required', 'string', 'min:8'],
         ]);
 
+        if ($validator->fails()) {
+            foreach ($validator->errors()->all() as $error) {
+                $this->error($error);
+            }
+
+            return self::FAILURE;
+        }
+
         $user = User::query()->create([
             'name' => $name,
             'phone' => (int) $phone,
-            'email' => "admin@ledger.local",
-            'password' => Hash::make($password),
+            'email' => "ledger@admin.com",
+            'password' => $password,
+            'role' => 0,
         ]);
 
-        $this->info("User created successfully. Phone username: {$user->phone}");
+        $this->info("Admin created successfully. Phone username: {$user->phone}");
 
         return self::SUCCESS;
     }

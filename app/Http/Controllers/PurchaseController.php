@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Helpers\DateHelper;
 use App\Models\Account;
-use App\Models\Party;
 use App\Models\Purchase;
+use App\Services\PartyCacheService;
 use App\Services\PurchaseService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -16,7 +16,10 @@ use Throwable;
 
 class PurchaseController extends Controller
 {
-    public function __construct(private readonly PurchaseService $service) {}
+    public function __construct(
+        private readonly PurchaseService $service,
+        private readonly PartyCacheService $partyCache,
+    ) {}
 
     public function index(Request $request): View
     {
@@ -67,7 +70,7 @@ class PurchaseController extends Controller
 
         return view('purchases.index', [
             'purchases' => $purchases,
-            'parties' => Party::query()->orderBy('name')->get(),
+            'parties' => $this->partyCache->all(),
             'filters' => [
                 'party_id' => $filters['party_id'] ?? null,
                 'from_date_bs' => $filters['from_date_bs'] ?? null,
@@ -86,7 +89,7 @@ class PurchaseController extends Controller
             ->get();
 
         return view('purchases.create', [
-            'parties' => Party::query()->orderBy('name')->get(),
+            'parties' => $this->partyCache->all(),
             'accounts' => $accounts,
             'defaultCashAccountId' => $accounts->firstWhere('type', 'cash')?->id,
             'currentBsDateInt' => DateHelper::currentBsInt(),

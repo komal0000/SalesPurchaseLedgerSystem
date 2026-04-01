@@ -19,6 +19,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'phone',
+        'role',
         'email',
         'password',
     ];
@@ -42,8 +43,14 @@ class User extends Authenticatable
     {
         return [
             'phone' => 'integer',
+            'role' => 'integer',
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function isAdmin(): bool
+    {
+        return (int) $this->role === 0;
     }
 }

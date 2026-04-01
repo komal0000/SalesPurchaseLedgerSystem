@@ -9,6 +9,7 @@ use App\Models\Party;
 use App\Models\Purchase;
 use App\Models\Sale;
 use App\Services\LedgerService;
+use App\Services\PartyCacheService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,7 +19,10 @@ use Throwable;
 
 class PartyController extends Controller
 {
-    public function __construct(private readonly LedgerService $ledger) {}
+    public function __construct(
+        private readonly LedgerService $ledger,
+        private readonly PartyCacheService $partyCache,
+    ) {}
 
     public function index(): View
     {
@@ -52,6 +56,8 @@ class PartyController extends Controller
         $validated['opening_balance_side'] = $validated['opening_balance_side'] ?? 'dr';
 
         $party = Party::query()->create($validated);
+
+        $this->partyCache->refreshAll();
 
         return redirect()
             ->route('parties.show', $party)
@@ -202,6 +208,8 @@ class PartyController extends Controller
     public function destroy(Party $party): RedirectResponse
     {
         $party->delete();
+
+        $this->partyCache->refreshAll();
 
         return redirect()
             ->route('parties.index')

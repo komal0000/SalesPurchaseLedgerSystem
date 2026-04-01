@@ -4,10 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Helpers\DateHelper;
 use App\Models\Account;
-use App\Models\Party;
 use App\Models\Payment;
 use App\Models\Purchase;
 use App\Models\Sale;
+use App\Services\PartyCacheService;
 use App\Services\PaymentService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -18,7 +18,10 @@ use Throwable;
 
 class PaymentController extends Controller
 {
-    public function __construct(private readonly PaymentService $service) {}
+    public function __construct(
+        private readonly PaymentService $service,
+        private readonly PartyCacheService $partyCache,
+    ) {}
 
     public function index(Request $request): View
     {
@@ -86,7 +89,7 @@ class PaymentController extends Controller
 
         return view('payments.index', [
             'payments' => $payments,
-            'parties' => Party::query()->orderBy('name')->get(),
+            'parties' => $this->partyCache->all(),
             'accounts' => Account::query()->orderByRaw("case when type = 'cash' then 0 else 1 end")->orderBy('name')->get(),
             'filters' => [
                 'party_id' => $filters['party_id'] ?? null,
@@ -112,7 +115,7 @@ class PaymentController extends Controller
         $defaultCashAccountId = $accounts->firstWhere('type', 'cash')?->id;
 
         return view('payments.create', [
-            'parties' => Party::query()->orderBy('name')->get(),
+            'parties' => $this->partyCache->all(),
             'accounts' => $accounts,
             'sales' => Sale::query()->with('party')->latest()->get(),
             'purchases' => Purchase::query()->with('party')->latest()->get(),
