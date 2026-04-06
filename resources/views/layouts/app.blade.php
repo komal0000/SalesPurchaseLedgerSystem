@@ -158,6 +158,8 @@
             </main>
         </div>
     </div>
+
+    @include('partials.quick-party-entry')
 </body>
 </html>
 

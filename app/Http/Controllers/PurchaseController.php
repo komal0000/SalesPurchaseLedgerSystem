@@ -101,21 +101,29 @@ class PurchaseController extends Controller
         $payload = $request->all();
 
         $payload['items'] = collect($payload['items'] ?? [])
-            ->map(fn (array $item) => [
-                'particular' => trim((string) ($item['particular'] ?? '')),
-                'qty' => $item['qty'] ?? null,
-                'price' => $item['price'] ?? null,
-            ])
+            ->map(function ($item) {
+                $item = is_array($item) ? $item : [];
+
+                return [
+                    'particular' => trim((string) ($item['particular'] ?? '')),
+                    'qty' => $item['qty'] ?? null,
+                    'price' => $item['price'] ?? null,
+                ];
+            })
             ->filter(fn (array $item) => $item['particular'] !== '' || filled($item['qty']) || filled($item['price']))
             ->values()
             ->all();
 
         $payload['payments'] = collect($payload['payments'] ?? [])
-            ->map(fn (array $payment) => [
-                'account_id' => $payment['account_id'] ?? null,
-                'amount' => $payment['amount'] ?? null,
-                'cheque_number' => trim((string) ($payment['cheque_number'] ?? '')),
-            ])
+            ->map(function ($payment) {
+                $payment = is_array($payment) ? $payment : [];
+
+                return [
+                    'account_id' => $payment['account_id'] ?? null,
+                    'amount' => $payment['amount'] ?? null,
+                    'cheque_number' => trim((string) ($payment['cheque_number'] ?? '')),
+                ];
+            })
             ->filter(fn (array $payment) => filled($payment['account_id']) || filled($payment['amount']) || filled($payment['cheque_number']))
             ->values()
             ->all();

@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Models\Payment;
+use App\Models\Purchase;
+use App\Models\Sale;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -15,6 +17,28 @@ class PaymentService
         return DB::transaction(function () use ($data) {
             if (!empty($data['sale_id']) && !empty($data['purchase_id'])) {
                 throw new InvalidArgumentException('Payment cannot link to both a sale and a purchase.');
+            }
+
+            if (!empty($data['sale_id'])) {
+                $isPartyMatched = Sale::query()
+                    ->whereKey($data['sale_id'])
+                    ->where('party_id', $data['party_id'])
+                    ->exists();
+
+                if (!$isPartyMatched) {
+                    throw new InvalidArgumentException('The selected sale does not belong to the chosen party.');
+                }
+            }
+
+            if (!empty($data['purchase_id'])) {
+                $isPartyMatched = Purchase::query()
+                    ->whereKey($data['purchase_id'])
+                    ->where('party_id', $data['party_id'])
+                    ->exists();
+
+                if (!$isPartyMatched) {
+                    throw new InvalidArgumentException('The selected purchase does not belong to the chosen party.');
+                }
             }
 
             $payment = Payment::query()->create([

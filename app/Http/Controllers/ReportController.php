@@ -127,19 +127,22 @@ class ReportController extends Controller
                 ]);
             }
 
-            $salesTotal = (float) Sale::query()
+            $salesTotal = (float) Ledger::query()
+                ->where('type', 'sale')
                 ->whereDate('created_at', '>=', $fromAd)
                 ->whereDate('created_at', '<=', $toAd)
-                ->sum('total');
+                ->sum('dr_amount');
 
-            $purchaseTotal = (float) Purchase::query()
+            $purchaseTotal = (float) Ledger::query()
+                ->where('type', 'purchase')
                 ->whereDate('created_at', '>=', $fromAd)
                 ->whereDate('created_at', '<=', $toAd)
-                ->sum('total');
+                ->sum('cr_amount');
 
             $profitLoss = $salesTotal - $purchaseTotal;
 
             $salesDetails = Sale::query()
+                ->withTrashed()
                 ->with('party:id,name')
                 ->whereDate('created_at', '>=', $fromAd)
                 ->whereDate('created_at', '<=', $toAd)
@@ -148,6 +151,7 @@ class ReportController extends Controller
                 ->get();
 
             $purchaseDetails = Purchase::query()
+                ->withTrashed()
                 ->with('party:id,name')
                 ->whereDate('created_at', '>=', $fromAd)
                 ->whereDate('created_at', '<=', $toAd)

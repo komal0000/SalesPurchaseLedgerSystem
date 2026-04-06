@@ -40,8 +40,11 @@
             <div class="rounded-xl border border-gray-300 bg-white p-4 shadow-sm">
                 <div class="grid gap-4 md:grid-cols-12 md:items-end">
                     <div class="md:col-span-8">
-                        <label for="party_id" class="text-sm font-semibold text-gray-700">Party</label>
-                        <select id="party_id" name="party_id" x-model="partyId" x-ref="party" @keydown.enter.prevent="focus('itemParticular')" class="select2 mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200" required>
+                        <div class="flex items-center justify-between">
+                            <label for="purchase-party-select" class="text-sm font-semibold text-gray-700">Party</label>
+                            <button type="button" data-open-quick-party-entry data-party-select-id="purchase-party-select" class="text-xs font-semibold text-indigo-600 hover:text-indigo-700">+ Quick Add</button>
+                        </div>
+                        <select id="purchase-party-select" name="party_id" x-model="partyId" x-ref="party" @keydown.enter.prevent="focus('itemParticular')" class="select2 mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200" required>
                             <option value="">Select party</option>
                             @foreach ($parties as $party)
                                 <option value="{{ $party->id }}">{{ $party->name }}</option>

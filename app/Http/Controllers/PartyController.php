@@ -11,6 +11,7 @@ use App\Models\Sale;
 use App\Services\LedgerService;
 use App\Services\PartyCacheService;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -38,16 +39,12 @@ class PartyController extends Controller
         return view('parties.index', compact('parties'));
     }
 
-    public function create(): View
-    {
-        return view('parties.create');
-    }
-
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): RedirectResponse|JsonResponse
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:255'],
+            'phone' => ['nullable', 'digits:10'],
+            'address' => ['nullable', 'string', 'max:500'],
             'opening_balance' => ['nullable', 'numeric', 'min:0'],
             'opening_balance_side' => ['nullable', 'in:dr,cr'],
         ]);
@@ -58,6 +55,20 @@ class PartyController extends Controller
         $party = Party::query()->create($validated);
 
         $this->partyCache->refreshAll();
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'message' => 'Party created successfully.',
+                'party' => [
+                    'id' => $party->id,
+                    'name' => $party->name,
+                    'phone' => $party->phone,
+                    'address' => $party->address,
+                    'opening_balance' => (float) ($party->opening_balance ?? 0),
+                    'opening_balance_side' => $party->opening_balance_side,
+                ],
+            ], 201);
+        }
 
         return redirect()
             ->route('parties.show', $party)

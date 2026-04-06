@@ -7,6 +7,7 @@
                 <div>
                     <h1 class="text-2xl font-semibold text-gray-900">{{ $party->name }}</h1>
                     <p class="mt-1 text-sm text-gray-500">Phone: {{ $party->phone ?: 'Not provided' }}</p>
+                    <p class="text-sm text-gray-500">Address: {{ $party->address ?: 'Not provided' }}</p>
                 </div>
                 @include('partials.balance-badge', ['balance' => $balance])
             </div>

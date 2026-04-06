@@ -20,7 +20,7 @@ class PartyCacheService
             self::ALL_PARTIES_KEY,
             now()->addMinutes(self::TTL_MINUTES),
             fn () => Party::query()
-                ->select(['id', 'name', 'phone'])
+                ->select(['id', 'name', 'phone', 'address'])
                 ->orderBy('name')
                 ->get()
         );
@@ -32,7 +32,7 @@ class PartyCacheService
             self::UNASSIGNED_PARTIES_KEY,
             now()->addMinutes(self::TTL_MINUTES),
             fn () => Party::query()
-                ->select(['id', 'name', 'phone'])
+                ->select(['id', 'name', 'phone', 'address'])
                 ->whereDoesntHave('employees')
                 ->orderBy('name')
                 ->get()

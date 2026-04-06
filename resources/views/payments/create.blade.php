@@ -7,8 +7,11 @@
             @csrf
             <div class="grid gap-4 md:grid-cols-2">
                 <div>
-                    <label for="party_id" class="block text-sm font-medium text-gray-700">Party</label>
-                    <select id="party_id" name="party_id" class="select2 mt-1 w-full rounded-lg border border-gray-300 px-3 py-2">
+                    <div class="flex items-center justify-between">
+                        <label for="payment-party-select" class="block text-sm font-medium text-gray-700">Party</label>
+                        <button type="button" data-open-quick-party-entry data-party-select-id="payment-party-select" class="text-xs font-semibold text-indigo-600 hover:text-indigo-700">+ Quick Add</button>
+                    </div>
+                    <select id="payment-party-select" name="party_id" class="select2 mt-1 w-full rounded-lg border border-gray-300 px-3 py-2">
                         <option value="">Select a party</option>
                         @foreach ($parties as $party)
                             <option value="{{ $party->id }}" @selected($selectedPartyId === $party->id)>{{ $party->name }}</option>

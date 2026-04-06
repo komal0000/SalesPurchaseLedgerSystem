@@ -12,8 +12,11 @@
 
         <form method="GET" action="{{ route('sales.index') }}" class="grid gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
             <div>
-                <label class="block text-sm font-medium text-gray-700">Party</label>
-                <select name="party_id" class="select2 mt-1 w-full rounded-lg border border-gray-300 px-3 py-2">
+                <div class="flex items-center justify-between">
+                    <label for="sales-filter-party-select" class="block text-sm font-medium text-gray-700">Party</label>
+                    <button type="button" data-open-quick-party-entry data-party-select-id="sales-filter-party-select" class="text-xs font-semibold text-indigo-600 hover:text-indigo-700">+ Quick Add</button>
+                </div>
+                <select id="sales-filter-party-select" name="party_id" class="select2 mt-1 w-full rounded-lg border border-gray-300 px-3 py-2">
                     <option value="">All parties</option>
                     @foreach ($parties as $party)
                         <option value="{{ $party->id }}" @selected(($filters['party_id'] ?? null) === $party->id)>{{ $party->name }}</option>
