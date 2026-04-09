@@ -160,6 +160,7 @@
     </div>
 
     @include('partials.quick-party-entry')
+    @stack('scripts')
 </body>
 </html>
 

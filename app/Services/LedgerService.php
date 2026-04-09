@@ -24,6 +24,19 @@ class LedgerService
         ]);
     }
 
+    public function reverseSale(Sale $sale): void
+    {
+        Ledger::query()->create([
+            'party_id' => $sale->party_id,
+            'account_id' => null,
+            'dr_amount' => 0,
+            'cr_amount' => $sale->total,
+            'type' => 'sale',
+            'ref_id' => $sale->id,
+            'ref_table' => 'sales',
+        ]);
+    }
+
     public function recordPurchase(Purchase $purchase): void
     {
         Ledger::query()->create([
@@ -31,6 +44,19 @@ class LedgerService
             'account_id' => null,
             'dr_amount' => 0,
             'cr_amount' => $purchase->total,
+            'type' => 'purchase',
+            'ref_id' => $purchase->id,
+            'ref_table' => 'purchases',
+        ]);
+    }
+
+    public function reversePurchase(Purchase $purchase): void
+    {
+        Ledger::query()->create([
+            'party_id' => $purchase->party_id,
+            'account_id' => null,
+            'dr_amount' => $purchase->total,
+            'cr_amount' => 0,
             'type' => 'purchase',
             'ref_id' => $purchase->id,
             'ref_table' => 'purchases',

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\DateHelper;
+use App\Http\Requests\StorePaymentRequest;
 use App\Models\Account;
 use App\Models\Payment;
 use App\Models\Purchase;
@@ -10,6 +11,7 @@ use App\Models\Sale;
 use App\Services\PartyCacheService;
 use App\Services\PaymentService;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -33,6 +35,8 @@ class PaymentController extends Controller
             'from_date_bs' => ['nullable', 'regex:/^\d{4}-\d{2}-\d{2}$/'],
             'to_date_bs' => ['nullable', 'regex:/^\d{4}-\d{2}-\d{2}$/'],
         ]);
+
+        $todayBs = DateHelper::getCurrentBS();
 
         try {
             [$fromAd, $toAd] = DateHelper::getAdRangeFromBsFilters($filters['from_date_bs'] ?? null, $filters['to_date_bs'] ?? null);
@@ -96,8 +100,8 @@ class PaymentController extends Controller
                 'account_id' => $filters['account_id'] ?? null,
                 'type' => $filters['type'] ?? null,
                 'keyword' => $filters['keyword'] ?? null,
-                'from_date_bs' => $filters['from_date_bs'] ?? null,
-                'to_date_bs' => $filters['to_date_bs'] ?? null,
+                'from_date_bs' => $filters['from_date_bs'] ?? $todayBs,
+                'to_date_bs' => $filters['to_date_bs'] ?? $todayBs,
             ],
             'hasSearched' => $hasSearched,
         ]);
@@ -105,8 +109,11 @@ class PaymentController extends Controller
 
     public function create(Request $request): View
     {
-        $sale = $request->filled('sale_id') ? Sale::query()->with('party')->find($request->string('sale_id')) : null;
-        $purchase = $request->filled('purchase_id') ? Purchase::query()->with('party')->find($request->string('purchase_id')) : null;
+        $saleId = old('sale_id', $request->string('sale_id')->toString());
+        $purchaseId = old('purchase_id', $request->string('purchase_id')->toString());
+
+        $sale = filled($saleId) ? Sale::query()->with('party')->find($saleId) : null;
+        $purchase = filled($purchaseId) ? Purchase::query()->with('party')->find($purchaseId) : null;
         $selectedPartyId = old('party_id', $request->string('party_id')->toString() ?: ($sale?->party_id ?? $purchase?->party_id));
         $accounts = Account::query()
             ->orderByRaw("case when type = 'cash' then 0 else 1 end")
@@ -117,8 +124,18 @@ class PaymentController extends Controller
         return view('payments.create', [
             'parties' => $this->partyCache->all(),
             'accounts' => $accounts,
-            'sales' => Sale::query()->with('party')->latest()->get(),
-            'purchases' => Purchase::query()->with('party')->latest()->get(),
+            'selectedSaleOption' => $sale
+                ? [
+                    'id' => $sale->id,
+                    'text' => $this->billOptionText($sale->id, $sale->party?->name, (float) $sale->total),
+                ]
+                : null,
+            'selectedPurchaseOption' => $purchase
+                ? [
+                    'id' => $purchase->id,
+                    'text' => $this->billOptionText($purchase->id, $purchase->party?->name, (float) $purchase->total),
+                ]
+                : null,
             'selectedPartyId' => $selectedPartyId,
             'selectedAccountId' => old('account_id', $defaultCashAccountId),
             'selectedSaleId' => old('sale_id', $sale?->id),
@@ -126,41 +143,9 @@ class PaymentController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StorePaymentRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'party_id' => ['required', 'integer', 'exists:parties,id'],
-            'amount' => ['required', 'numeric', 'min:0.01'],
-            'account_id' => ['required', 'integer', 'exists:accounts,id'],
-            'cheque_number' => ['nullable', 'string', 'max:50'],
-            'sale_id' => ['nullable', 'integer', 'exists:sales,id'],
-            'purchase_id' => ['nullable', 'integer', 'exists:purchases,id'],
-        ]);
-
-        if (!empty($validated['sale_id']) && !empty($validated['purchase_id'])) {
-            throw ValidationException::withMessages([
-                'sale_id' => 'A payment can be linked to a sale or purchase, not both.',
-                'purchase_id' => 'A payment can be linked to a sale or purchase, not both.',
-            ]);
-        }
-
-        if (!empty($validated['sale_id'])) {
-            $sale = Sale::query()->findOrFail($validated['sale_id']);
-            if ($sale->party_id !== $validated['party_id']) {
-                throw ValidationException::withMessages([
-                    'sale_id' => 'The selected sale does not belong to the chosen party.',
-                ]);
-            }
-        }
-
-        if (!empty($validated['purchase_id'])) {
-            $purchase = Purchase::query()->findOrFail($validated['purchase_id']);
-            if ($purchase->party_id !== $validated['party_id']) {
-                throw ValidationException::withMessages([
-                    'purchase_id' => 'The selected purchase does not belong to the chosen party.',
-                ]);
-            }
-        }
+        $validated = $request->validated();
 
         $validated['type'] = !empty($validated['sale_id'])
             ? 'received'
@@ -190,5 +175,106 @@ class PaymentController extends Controller
         return redirect()
             ->route('payments.index')
             ->with('success', 'Payment deleted successfully and ledger reversed.');
+    }
+
+    public function searchSales(Request $request): JsonResponse
+    {
+        $filters = $request->validate([
+            'party_id' => ['nullable', 'integer', 'exists:parties,id'],
+            'q' => ['nullable', 'string', 'max:120'],
+            'page' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        if (!filled($filters['party_id'] ?? null)) {
+            return response()->json([
+                'results' => [],
+                'pagination' => ['more' => false],
+            ]);
+        }
+
+        $sales = Sale::query()
+            ->with('party:id,name')
+            ->where('party_id', $filters['party_id'])
+            ->when($filters['q'] ?? null, function ($query, $keyword) {
+                $term = trim((string) $keyword);
+
+                $query->where(function ($subQuery) use ($term) {
+                    if (is_numeric($term)) {
+                        $subQuery
+                            ->whereKey((int) $term)
+                            ->orWhere('total', (float) $term)
+                            ->orWhere('total', 'like', '%' . $term . '%');
+
+                        return;
+                    }
+
+                    $subQuery->where('total', 'like', '%' . $term . '%');
+                });
+            })
+            ->latest()
+            ->paginate(20, ['id', 'party_id', 'total'], 'page', $filters['page'] ?? 1);
+
+        return response()->json([
+            'results' => $sales->getCollection()
+                ->map(fn (Sale $sale) => [
+                    'id' => (string) $sale->id,
+                    'text' => $this->billOptionText($sale->id, $sale->party?->name, (float) $sale->total),
+                ])
+                ->values(),
+            'pagination' => ['more' => $sales->hasMorePages()],
+        ]);
+    }
+
+    public function searchPurchases(Request $request): JsonResponse
+    {
+        $filters = $request->validate([
+            'party_id' => ['nullable', 'integer', 'exists:parties,id'],
+            'q' => ['nullable', 'string', 'max:120'],
+            'page' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        if (!filled($filters['party_id'] ?? null)) {
+            return response()->json([
+                'results' => [],
+                'pagination' => ['more' => false],
+            ]);
+        }
+
+        $purchases = Purchase::query()
+            ->with('party:id,name')
+            ->where('party_id', $filters['party_id'])
+            ->when($filters['q'] ?? null, function ($query, $keyword) {
+                $term = trim((string) $keyword);
+
+                $query->where(function ($subQuery) use ($term) {
+                    if (is_numeric($term)) {
+                        $subQuery
+                            ->whereKey((int) $term)
+                            ->orWhere('total', (float) $term)
+                            ->orWhere('total', 'like', '%' . $term . '%');
+
+                        return;
+                    }
+
+                    $subQuery->where('total', 'like', '%' . $term . '%');
+                });
+            })
+            ->latest()
+            ->paginate(20, ['id', 'party_id', 'total'], 'page', $filters['page'] ?? 1);
+
+        return response()->json([
+            'results' => $purchases->getCollection()
+                ->map(fn (Purchase $purchase) => [
+                    'id' => (string) $purchase->id,
+                    'text' => $this->billOptionText($purchase->id, $purchase->party?->name, (float) $purchase->total),
+                ])
+                ->values(),
+            'pagination' => ['more' => $purchases->hasMorePages()],
+        ]);
+    }
+
+    private function billOptionText(int|string $id, ?string $partyName, float $total): string
+    {
+        return sprintf('#%d | %s | %s', (int) $id, $partyName ?? 'Unknown Party', number_format($total, 2));
     }
 }

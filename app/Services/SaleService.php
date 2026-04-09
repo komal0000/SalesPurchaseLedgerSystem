@@ -51,6 +51,14 @@ class SaleService
     public function delete(Sale $sale): void
     {
         DB::transaction(function () use ($sale): void {
+            $sale->loadMissing('payments');
+
+            foreach ($sale->payments as $payment) {
+                $this->ledger->reversePayment($payment);
+                $payment->delete();
+            }
+
+            $this->ledger->reverseSale($sale);
             $sale->delete();
         });
     }

@@ -36,20 +36,20 @@
                 </div>
                 <div>
                     <label for="sale_id" class="block text-sm font-medium text-gray-700">Linked Sale</label>
-                    <select id="sale_id" name="sale_id" class="select2 mt-1 w-full rounded-lg border border-gray-300 px-3 py-2">
+                    <select id="sale_id" name="sale_id" class="select2 mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" data-placeholder="Search linked sale">
                         <option value="">None</option>
-                        @foreach ($sales as $sale)
-                            <option value="{{ $sale->id }}" @selected($selectedSaleId === $sale->id)>{{ $sale->party->name }} / {{ number_format($sale->total, 2) }}</option>
-                        @endforeach
+                        @if ($selectedSaleOption)
+                            <option value="{{ $selectedSaleOption['id'] }}" @selected((string) $selectedSaleId === (string) $selectedSaleOption['id'])>{{ $selectedSaleOption['text'] }}</option>
+                        @endif
                     </select>
                 </div>
                 <div>
                     <label for="purchase_id" class="block text-sm font-medium text-gray-700">Linked Purchase</label>
-                    <select id="purchase_id" name="purchase_id" class="select2 mt-1 w-full rounded-lg border border-gray-300 px-3 py-2">
+                    <select id="purchase_id" name="purchase_id" class="select2 mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" data-placeholder="Search linked purchase">
                         <option value="">None</option>
-                        @foreach ($purchases as $purchase)
-                            <option value="{{ $purchase->id }}" @selected($selectedPurchaseId === $purchase->id)>{{ $purchase->party->name }} / {{ number_format($purchase->total, 2) }}</option>
-                        @endforeach
+                        @if ($selectedPurchaseOption)
+                            <option value="{{ $selectedPurchaseOption['id'] }}" @selected((string) $selectedPurchaseId === (string) $selectedPurchaseOption['id'])>{{ $selectedPurchaseOption['text'] }}</option>
+                        @endif
                     </select>
                 </div>
             </div>
@@ -61,3 +61,54 @@
         </form>
     </div>
 @endsection
+
+@push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!window.jQuery || !window.jQuery.fn || !window.jQuery.fn.select2) {
+                return;
+            }
+
+            const $ = window.jQuery;
+            const $partySelect = $('#payment-party-select');
+
+            const initRemoteSelect = (selector, url) => {
+                const $select = $(selector);
+
+                if (!$select.length) {
+                    return;
+                }
+
+                if ($select.hasClass('select2-hidden-accessible')) {
+                    $select.select2('destroy');
+                }
+
+                $select.select2({
+                    width: '100%',
+                    placeholder: $select.data('placeholder') || 'Search',
+                    allowClear: true,
+                    ajax: {
+                        url,
+                        dataType: 'json',
+                        delay: 250,
+                        data: params => ({
+                            party_id: $partySelect.val() || null,
+                            q: params.term || '',
+                            page: params.page || 1,
+                        }),
+                        processResults: data => data,
+                        cache: true,
+                    },
+                });
+            };
+
+            initRemoteSelect('#sale_id', @json(route('payments.search-sales')));
+            initRemoteSelect('#purchase_id', @json(route('payments.search-purchases')));
+
+            $partySelect.on('change', () => {
+                $('#sale_id').val(null).trigger('change');
+                $('#purchase_id').val(null).trigger('change');
+            });
+        });
+    </script>
+@endpush

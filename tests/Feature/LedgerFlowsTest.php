@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Account;
 use App\Models\Ledger;
 use App\Models\Party;
+use App\Models\User;
 use App\Services\LedgerService;
 use App\Services\PaymentService;
 use App\Services\PurchaseService;
@@ -123,6 +124,128 @@ class LedgerFlowsTest extends TestCase
         $this->assertSame(0.0, $ledger->partyBalance($party->id));
         $this->assertSame(0.0, $ledger->accountBalance($cash->id));
         $this->assertSame(4, Ledger::query()->count());
+    }
+
+    public function test_sale_delete_reverses_sale_and_linked_payments(): void
+    {
+        $ledger = app(LedgerService::class);
+        $saleService = app(SaleService::class);
+
+        $cash = Account::query()->create([
+            'name' => 'Cash',
+            'type' => 'cash',
+        ]);
+
+        $party = Party::query()->create([
+            'name' => 'Delete Sale Party',
+            'phone' => null,
+        ]);
+
+        $sale = $saleService->create([
+            'party_id' => $party->id,
+            'items' => [
+                [
+                    'particular' => 'Goods',
+                    'qty' => 1,
+                    'price' => 1000,
+                ],
+            ],
+            'payments' => [
+                [
+                    'account_id' => $cash->id,
+                    'amount' => 400,
+                    'cheque_number' => null,
+                ],
+            ],
+        ]);
+
+        $paymentId = $sale->payments->first()->id;
+
+        $this->assertSame(600.0, $ledger->partyBalance($party->id));
+        $this->assertSame(400.0, $ledger->accountBalance($cash->id));
+
+        $saleService->delete($sale);
+
+        $this->assertSoftDeleted('sales', ['id' => $sale->id]);
+        $this->assertSoftDeleted('payments', ['id' => $paymentId]);
+        $this->assertSame(0.0, $ledger->partyBalance($party->id));
+        $this->assertSame(0.0, $ledger->accountBalance($cash->id));
+        $this->assertSame(6, Ledger::query()->count());
+    }
+
+    public function test_purchase_delete_reverses_purchase_and_linked_payments(): void
+    {
+        $ledger = app(LedgerService::class);
+        $purchaseService = app(PurchaseService::class);
+
+        $cash = Account::query()->create([
+            'name' => 'Cash',
+            'type' => 'cash',
+        ]);
+
+        $party = Party::query()->create([
+            'name' => 'Delete Purchase Party',
+            'phone' => null,
+        ]);
+
+        $purchase = $purchaseService->create([
+            'party_id' => $party->id,
+            'items' => [
+                [
+                    'particular' => 'Raw Material',
+                    'qty' => 1,
+                    'price' => 500,
+                ],
+            ],
+            'payments' => [
+                [
+                    'account_id' => $cash->id,
+                    'amount' => 200,
+                    'cheque_number' => null,
+                ],
+            ],
+        ]);
+
+        $paymentId = $purchase->payments->first()->id;
+
+        $this->assertSame(-300.0, $ledger->partyBalance($party->id));
+        $this->assertSame(-200.0, $ledger->accountBalance($cash->id));
+
+        $purchaseService->delete($purchase);
+
+        $this->assertSoftDeleted('purchases', ['id' => $purchase->id]);
+        $this->assertSoftDeleted('payments', ['id' => $paymentId]);
+        $this->assertSame(0.0, $ledger->partyBalance($party->id));
+        $this->assertSame(0.0, $ledger->accountBalance($cash->id));
+        $this->assertSame(6, Ledger::query()->count());
+    }
+
+    public function test_dashboard_totals_include_opening_balances(): void
+    {
+        /** @var User $user */
+        $user = User::factory()->create();
+
+        Party::query()->create([
+            'name' => 'Receivable Party',
+            'phone' => null,
+            'opening_balance' => 200,
+            'opening_balance_side' => 'dr',
+        ]);
+
+        Party::query()->create([
+            'name' => 'Payable Party',
+            'phone' => null,
+            'opening_balance' => 300,
+            'opening_balance_side' => 'cr',
+        ]);
+
+        $response = $this
+            ->actingAs($user)
+            ->get(route('dashboard'));
+
+        $response->assertOk();
+        $response->assertViewHas('totalReceivable', 200.0);
+        $response->assertViewHas('totalPayable', 300.0);
     }
 
     public function test_ledger_entries_cannot_be_updated_or_deleted(): void

@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Account;
-use App\Models\Ledger;
 use App\Models\Payment;
+use App\Models\Party;
 use App\Models\Purchase;
 use App\Models\Sale;
 use App\Services\LedgerService;
@@ -14,11 +14,9 @@ class DashboardController extends Controller
 {
     public function __invoke(LedgerService $ledger): View
     {
-        $partyBalances = Ledger::query()
-            ->whereNotNull('party_id')
-            ->groupBy('party_id')
-            ->selectRaw('party_id, COALESCE(SUM(dr_amount) - SUM(cr_amount), 0) as balance')
-            ->pluck('balance');
+        $partyBalances = Party::query()
+            ->pluck('id')
+            ->map(fn ($partyId) => $ledger->partyBalance((string) $partyId));
 
         $accounts = Account::query()
             ->orderBy('name')

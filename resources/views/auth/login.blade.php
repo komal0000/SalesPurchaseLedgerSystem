@@ -18,9 +18,7 @@
                 <section class="hidden bg-gradient-to-br from-indigo-600 via-indigo-700 to-cyan-600 p-10 text-white lg:block">
                     <p class="text-sm uppercase tracking-[0.2em] text-indigo-100">LedgerApp</p>
                     <h1 class="mt-5 text-3xl font-semibold leading-tight">Sales, Purchase, and Ledger control in one workspace.</h1>
-                    <p class="mt-4 text-sm text-indigo-100">Create the first admin using <strong>php artisan make:admin</strong>, then sign in to manage users and transactions securely.</p>
                 </section>
-
                 <section class="p-6 sm:p-8 lg:p-10">
                     <div class="mb-8">
                         <p class="text-sm uppercase tracking-[0.2em] text-indigo-600">Welcome back</p>

@@ -40,7 +40,10 @@ Route::middleware('auth')->group(function () {
         ->middleware('admin')
         ->name('settings.users.destroy');
 
-    Route::resource('parties', PartyController::class)->only(['index', 'store', 'show', 'destroy']);
+    Route::resource('parties', PartyController::class)->only(['index', 'store', 'show']);
+    Route::delete('parties/{party}', [PartyController::class, 'destroy'])
+        ->middleware('admin')
+        ->name('parties.destroy');
     Route::get('parties/{party}/ledger', [PartyController::class, 'ledgerStatement'])->name('parties.ledger');
     Route::patch('parties/{party}/opening-balance', [PartyController::class, 'updateOpeningBalance'])->name('parties.opening-balance.update');
 
@@ -50,9 +53,25 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('employees', EmployeeController::class)->only(['index', 'create', 'store', 'show']);
 
-    Route::resource('sales', SaleController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
-    Route::resource('purchases', PurchaseController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
-    Route::resource('payments', PaymentController::class)->only(['index', 'create', 'store', 'show', 'destroy']);
+    Route::resource('sales', SaleController::class)->only(['index', 'create', 'store', 'show']);
+    Route::delete('sales/{sale}', [SaleController::class, 'destroy'])
+        ->middleware('admin')
+        ->name('sales.destroy');
+
+    Route::resource('purchases', PurchaseController::class)->only(['index', 'create', 'store', 'show']);
+    Route::delete('purchases/{purchase}', [PurchaseController::class, 'destroy'])
+        ->middleware('admin')
+        ->name('purchases.destroy');
+
+    Route::get('payments/search-sales', [PaymentController::class, 'searchSales'])
+        ->name('payments.search-sales');
+    Route::get('payments/search-purchases', [PaymentController::class, 'searchPurchases'])
+        ->name('payments.search-purchases');
+
+    Route::resource('payments', PaymentController::class)->only(['index', 'create', 'store', 'show']);
+    Route::delete('payments/{payment}', [PaymentController::class, 'destroy'])
+        ->middleware('admin')
+        ->name('payments.destroy');
     Route::resource('employee-salaries', EmployeeSalaryController::class)->only(['index', 'create', 'store', 'show']);
     Route::get('employee-salaries/{employeeSalary}/print', [EmployeeSalaryController::class, 'print'])->name('employee-salaries.print');
 

@@ -131,13 +131,15 @@ class ReportController extends Controller
                 ->where('type', 'sale')
                 ->whereDate('created_at', '>=', $fromAd)
                 ->whereDate('created_at', '<=', $toAd)
-                ->sum('dr_amount');
+                ->selectRaw('COALESCE(SUM(dr_amount) - SUM(cr_amount), 0) as total')
+                ->value('total');
 
             $purchaseTotal = (float) Ledger::query()
                 ->where('type', 'purchase')
                 ->whereDate('created_at', '>=', $fromAd)
                 ->whereDate('created_at', '<=', $toAd)
-                ->sum('cr_amount');
+                ->selectRaw('COALESCE(SUM(cr_amount) - SUM(dr_amount), 0) as total')
+                ->value('total');
 
             $profitLoss = $salesTotal - $purchaseTotal;
 

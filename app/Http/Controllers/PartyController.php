@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\DateHelper;
+use App\Http\Requests\StorePartyRequest;
+use App\Http\Requests\UpdatePartyOpeningBalanceRequest;
 use App\Models\Ledger;
 use App\Models\Payment;
 use App\Models\Party;
@@ -39,15 +41,9 @@ class PartyController extends Controller
         return view('parties.index', compact('parties'));
     }
 
-    public function store(Request $request): RedirectResponse|JsonResponse
+    public function store(StorePartyRequest $request): RedirectResponse|JsonResponse
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'phone' => ['nullable', 'digits:10'],
-            'address' => ['nullable', 'string', 'max:500'],
-            'opening_balance' => ['nullable', 'numeric', 'min:0'],
-            'opening_balance_side' => ['nullable', 'in:dr,cr'],
-        ]);
+        $validated = $request->validated();
 
         $validated['opening_balance'] = (float) ($validated['opening_balance'] ?? 0);
         $validated['opening_balance_side'] = $validated['opening_balance_side'] ?? 'dr';
@@ -129,12 +125,9 @@ class PartyController extends Controller
         ]);
     }
 
-    public function updateOpeningBalance(Request $request, Party $party): RedirectResponse
+    public function updateOpeningBalance(UpdatePartyOpeningBalanceRequest $request, Party $party): RedirectResponse
     {
-        $validated = $request->validate([
-            'opening_balance' => ['required', 'numeric', 'min:0'],
-            'opening_balance_side' => ['required', 'in:dr,cr'],
-        ]);
+        $validated = $request->validated();
 
         $party->update([
             'opening_balance' => (float) $validated['opening_balance'],

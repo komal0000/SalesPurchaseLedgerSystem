@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
+use RuntimeException;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -18,6 +19,10 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        if ($this->app->environment('production') && config('app.timezone') !== 'Asia/Kathmandu') {
+            throw new RuntimeException('APP_TIMEZONE must be set to Asia/Kathmandu in production.');
+        }
+
         RateLimiter::for('login', function (Request $request) {
             return Limit::perMinute(5)->by($request->ip() . '|' . (string) $request->input('phone'));
         });

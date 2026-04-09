@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\LoginRequest;
 use Illuminate\Contracts\Auth\Factory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,14 +20,11 @@ class LoginController extends Controller
         return view('auth.login');
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(LoginRequest $request): RedirectResponse
     {
         $guard = $this->auth->guard();
 
-        $credentials = $request->validate([
-            'phone' => ['required', 'integer', 'digits:10'],
-            'password' => ['required', 'string'],
-        ]);
+        $credentials = $request->validated();
         $credentials['phone'] = (int) $credentials['phone'];
 
         $remember = $request->boolean('remember');

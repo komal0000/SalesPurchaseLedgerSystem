@@ -72,6 +72,28 @@ class PartyQuickEntryTest extends TestCase
         ]);
     }
 
+    public function test_quick_party_entry_accepts_plus_977_phone_and_normalizes_it(): void
+    {
+        /** @var User $user */
+        $user = User::factory()->create();
+
+        $response = $this
+            ->actingAs($user)
+            ->postJson(route('parties.store'), [
+                'name' => 'Nepal Format Party',
+                'phone' => '+977-9800000044',
+            ]);
+
+        $response
+            ->assertCreated()
+            ->assertJsonPath('party.phone', '9800000044');
+
+        $this->assertDatabaseHas('parties', [
+            'name' => 'Nepal Format Party',
+            'phone' => '9800000044',
+        ]);
+    }
+
     public function test_party_store_redirects_to_party_detail_for_form_submission(): void
     {
         /** @var User $user */

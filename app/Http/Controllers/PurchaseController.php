@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\DateHelper;
+use App\Http\Requests\StorePurchaseRequest;
 use App\Models\Account;
 use App\Models\Purchase;
 use App\Services\PartyCacheService;
@@ -28,6 +29,8 @@ class PurchaseController extends Controller
             'from_date_bs' => ['nullable', 'regex:/^\d{4}-\d{2}-\d{2}$/'],
             'to_date_bs' => ['nullable', 'regex:/^\d{4}-\d{2}-\d{2}$/'],
         ]);
+
+        $todayBs = DateHelper::getCurrentBS();
 
         try {
             [$fromAd, $toAd] = DateHelper::getAdRangeFromBsFilters($filters['from_date_bs'] ?? null, $filters['to_date_bs'] ?? null);
@@ -73,8 +76,8 @@ class PurchaseController extends Controller
             'parties' => $this->partyCache->all(),
             'filters' => [
                 'party_id' => $filters['party_id'] ?? null,
-                'from_date_bs' => $filters['from_date_bs'] ?? null,
-                'to_date_bs' => $filters['to_date_bs'] ?? null,
+                'from_date_bs' => $filters['from_date_bs'] ?? $todayBs,
+                'to_date_bs' => $filters['to_date_bs'] ?? $todayBs,
             ],
             'hasSearched' => $hasSearched,
             'currentBsDateInt' => DateHelper::currentBsInt(),
@@ -96,49 +99,9 @@ class PurchaseController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StorePurchaseRequest $request): RedirectResponse
     {
-        $payload = $request->all();
-
-        $payload['items'] = collect($payload['items'] ?? [])
-            ->map(function ($item) {
-                $item = is_array($item) ? $item : [];
-
-                return [
-                    'particular' => trim((string) ($item['particular'] ?? '')),
-                    'qty' => $item['qty'] ?? null,
-                    'price' => $item['price'] ?? null,
-                ];
-            })
-            ->filter(fn (array $item) => $item['particular'] !== '' || filled($item['qty']) || filled($item['price']))
-            ->values()
-            ->all();
-
-        $payload['payments'] = collect($payload['payments'] ?? [])
-            ->map(function ($payment) {
-                $payment = is_array($payment) ? $payment : [];
-
-                return [
-                    'account_id' => $payment['account_id'] ?? null,
-                    'amount' => $payment['amount'] ?? null,
-                    'cheque_number' => trim((string) ($payment['cheque_number'] ?? '')),
-                ];
-            })
-            ->filter(fn (array $payment) => filled($payment['account_id']) || filled($payment['amount']) || filled($payment['cheque_number']))
-            ->values()
-            ->all();
-
-        $validated = validator($payload, [
-            'party_id' => ['required', 'integer', 'exists:parties,id'],
-            'items' => ['required', 'array', 'min:1'],
-            'items.*.particular' => ['required', 'string', 'max:255'],
-            'items.*.qty' => ['required', 'numeric', 'min:0.01'],
-            'items.*.price' => ['required', 'numeric', 'min:0'],
-            'payments' => ['nullable', 'array'],
-            'payments.*.account_id' => ['required', 'integer', 'exists:accounts,id'],
-            'payments.*.amount' => ['required', 'numeric', 'min:0.01'],
-            'payments.*.cheque_number' => ['nullable', 'string', 'max:50'],
-        ])->validate();
+        $validated = $request->validated();
 
         $itemTotal = collect($validated['items'])->sum(fn (array $item) => (float) $item['qty'] * (float) $item['price']);
         $paymentTotal = collect($validated['payments'] ?? [])->sum(fn (array $payment) => (float) $payment['amount']);
@@ -158,14 +121,20 @@ class PurchaseController extends Controller
 
     public function show(Purchase $purchase): View
     {
-        $purchase->load(['party', 'items', 'payments.account']);
+        $purchase->load(['party', 'items']);
         $purchase->created_at_bs = DateHelper::adToBs($purchase->created_at);
-        $purchase->paid_amount = (float) $purchase->payments->where('type', 'given')->sum('amount');
+        $purchase->paid_amount = (float) $purchase->payments()->where('type', 'given')->sum('amount');
         $purchase->remaining_amount = max(0, (float) $purchase->total - $purchase->paid_amount);
+
+        $linkedPayments = $purchase->payments()
+            ->with('account')
+            ->latest()
+            ->paginate(20)
+            ->withQueryString();
 
         return view('purchases.show', [
             'purchase' => $purchase,
-            'linkedPayments' => $purchase->payments()->with('account')->latest()->get(),
+            'linkedPayments' => $linkedPayments,
         ]);
     }
 

@@ -51,6 +51,14 @@ class PurchaseService
     public function delete(Purchase $purchase): void
     {
         DB::transaction(function () use ($purchase): void {
+            $purchase->loadMissing('payments');
+
+            foreach ($purchase->payments as $payment) {
+                $this->ledger->reversePayment($payment);
+                $payment->delete();
+            }
+
+            $this->ledger->reversePurchase($purchase);
             $purchase->delete();
         });
     }

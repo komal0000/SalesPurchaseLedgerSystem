@@ -52,7 +52,7 @@
         <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
             <div class="mb-4 flex items-center justify-between">
                 <h2 class="text-lg font-semibold text-gray-900">Linked Payments</h2>
-                <span class="text-sm text-gray-500">{{ $linkedPayments->count() }} payment(s)</span>
+                <span class="text-sm text-gray-500">{{ $linkedPayments->total() }} payment(s)</span>
             </div>
             <div class="space-y-3">
                 @forelse ($linkedPayments as $payment)
@@ -71,6 +71,12 @@
                     <p class="text-sm text-gray-500">No payments linked to this sale yet.</p>
                 @endforelse
             </div>
+
+            @if ($linkedPayments->hasPages())
+                <div class="mt-4">
+                    {{ $linkedPayments->links() }}
+                </div>
+            @endif
         </div>
     </div>
 @endsection

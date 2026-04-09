@@ -2,13 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreSettingsUserRequest;
+use App\Http\Requests\UpdatePayrollSettingsRequest;
+use App\Http\Requests\UpdateSettingsUserRequest;
 use App\Models\PayrollSetting;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Validation\Rule;
 
 class SettingsController extends Controller
 {
@@ -30,12 +31,9 @@ class SettingsController extends Controller
         ]);
     }
 
-    public function updatePayroll(Request $request): RedirectResponse
+    public function updatePayroll(UpdatePayrollSettingsRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'leave_fine_per_day' => ['required', 'numeric', 'min:0'],
-            'overtime_money_per_day' => ['required', 'numeric', 'min:0'],
-        ]);
+        $validated = $request->validated();
 
         $setting = PayrollSetting::query()->firstOrCreate([], [
             'leave_fine_per_day' => 0,
@@ -49,14 +47,9 @@ class SettingsController extends Controller
             ->with('success', 'Payroll settings updated successfully.');
     }
 
-    public function storeUser(Request $request): RedirectResponse
+    public function storeUser(StoreSettingsUserRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'phone' => ['required', 'integer', 'digits:10', 'unique:users,phone'],
-            'email' => ['nullable', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:8'],
-        ]);
+        $validated = $request->validated();
 
         $email = filled($validated['email'] ?? null)
             ? $validated['email']
@@ -83,19 +76,13 @@ class SettingsController extends Controller
             ->with('success', 'Normal user created successfully.');
     }
 
-    public function updateUser(Request $request, User $user): RedirectResponse
+    public function updateUser(UpdateSettingsUserRequest $request, User $user): RedirectResponse
     {
         if ((int) $user->role === 0) {
             abort(403, 'Admin users cannot be edited from settings.');
         }
 
-        $validated = $request->validate([
-            'edit_user_id' => ['required', 'integer'],
-            'edit_name' => ['required', 'string', 'max:255'],
-            'edit_phone' => ['required', 'integer', 'digits:10', Rule::unique('users', 'phone')->ignore($user->id)],
-            'edit_email' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
-            'edit_password' => ['nullable', 'string', 'min:8'],
-        ]);
+        $validated = $request->validated();
 
         abort_if((int) $validated['edit_user_id'] !== (int) $user->id, 422, 'The selected user does not match the edit request.');
 

@@ -8,7 +8,7 @@
                 <p class="text-sm text-gray-500">Running balance derived entirely from ledger rows.</p>
             </div>
             <div class="flex items-center gap-3 print:hidden">
-                <button type="button" onclick="window.print()" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Print Ledger</button>
+                <button type="button" onclick="printPartyLedgerTable()" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Print Ledger</button>
                 <a href="{{ route('parties.show', $party) }}" class="text-sm text-indigo-600 hover:text-indigo-700">Back to party</a>
             </div>
         </div>
@@ -43,7 +43,7 @@
                 </div>
             </div>
 
-            <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm" x-show="viewMode === 'table'" x-cloak>
+            <div id="party-ledger-print-table" class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm" x-show="viewMode === 'table'" x-cloak>
                 <div class="overflow-x-auto">
                     <table class="min-w-[720px] w-full text-sm font-mono">
                         <thead class="bg-gray-100 text-xs uppercase tracking-wide text-gray-500">
@@ -112,6 +112,61 @@
         </div>
     </div>
 @endsection
+
+@push('scripts')
+    <script>
+        function printPartyLedgerTable() {
+            const tableContainer = document.getElementById('party-ledger-print-table');
+
+            if (!tableContainer) {
+                return;
+            }
+
+            const printWindow = window.open('', '_blank', 'width=1024,height=768');
+
+            if (!printWindow) {
+                return;
+            }
+
+            const partyName = @json($party->name . ' Ledger');
+            const tableHtml = tableContainer.innerHTML;
+
+            printWindow.document.open();
+            printWindow.document.write(`
+                <!doctype html>
+                <html>
+                    <head>
+                        <meta charset="utf-8">
+                        <title>${partyName}</title>
+                        <style>
+                            * { box-sizing: border-box; }
+                            body { margin: 24px; font-family: Arial, sans-serif; color: #111827; }
+                            h1 { margin: 0 0 16px; font-size: 20px; font-weight: 700; }
+                            table { width: 100%; border-collapse: collapse; font-size: 12px; }
+                            th, td { border: 1px solid #d1d5db; padding: 8px; vertical-align: top; text-align: left; }
+                            th { background: #f3f4f6; text-transform: uppercase; font-size: 11px; letter-spacing: .03em; }
+                            .text-right { text-align: right; }
+                            .text-blue-600, .text-orange-500, .text-green-600, .text-red-500 { color: #111827 !important; }
+                            .font-semibold { font-weight: 700; }
+                            @page { size: A4 portrait; margin: 12mm; }
+                        </style>
+                    </head>
+                    <body>
+                        <h1>${partyName}</h1>
+                        ${tableHtml}
+                    </body>
+                </html>
+            `);
+            printWindow.document.close();
+
+            printWindow.onload = function () {
+                printWindow.focus();
+                printWindow.print();
+                printWindow.close();
+            };
+        }
+    </script>
+@endpush
 
 
 

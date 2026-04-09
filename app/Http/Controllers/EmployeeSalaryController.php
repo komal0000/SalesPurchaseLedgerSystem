@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\DateHelper;
+use App\Http\Requests\StoreEmployeeSalaryRequest;
 use App\Models\Account;
 use App\Models\Employee;
 use App\Models\EmployeeLeaveOvertime;
@@ -26,10 +27,17 @@ class EmployeeSalaryController extends Controller
     public function index(Request $request): View
     {
         $filters = $request->validate([
-            'employee_name' => ['nullable', 'string', 'max:255'],
+            'employee_id' => ['nullable', 'integer', 'exists:employees,id'],
             'from_date_bs' => ['nullable', 'regex:/^\d{4}-\d{2}-\d{2}$/'],
             'to_date_bs' => ['nullable', 'regex:/^\d{4}-\d{2}-\d{2}$/'],
         ]);
+
+        $employees = Employee::query()
+            ->select('employees.*')
+            ->join('parties', 'parties.id', '=', 'employees.party_id')
+            ->with('party:id,name,phone')
+            ->orderBy('parties.name')
+            ->get();
 
         try {
             [$fromAd, $toAd] = DateHelper::getAdRangeFromBsFilters($filters['from_date_bs'] ?? null, $filters['to_date_bs'] ?? null);
@@ -40,27 +48,14 @@ class EmployeeSalaryController extends Controller
             ]);
         }
 
-        $hasSearched = filled($filters['employee_name'] ?? null)
+        $hasSearched = filled($filters['employee_id'] ?? null)
             || filled($filters['from_date_bs'] ?? null)
             || filled($filters['to_date_bs'] ?? null);
 
         if ($hasSearched) {
             $rows = EmployeeSalary::query()
                 ->with('party')
-                ->when($filters['employee_name'] ?? null, function ($query, $name) {
-                    $term = '%' . trim((string) $name) . '%';
-
-                    $query->where(function ($subQuery) use ($term) {
-                        $subQuery
-                            ->where('employee_name', 'like', $term)
-                            ->orWhere('employee_code', 'like', $term)
-                            ->orWhereHas('party', function ($partyQuery) use ($term) {
-                                $partyQuery
-                                    ->where('name', 'like', $term)
-                                    ->orWhere('phone', 'like', $term);
-                            });
-                    });
-                })
+                ->when($filters['employee_id'] ?? null, fn ($query, $employeeId) => $query->where('employee_id', $employeeId))
                 ->when($fromAd, fn ($query) => $query->whereDate('salary_date', '>=', $fromAd))
                 ->when($toAd, fn ($query) => $query->whereDate('salary_date', '<=', $toAd))
                 ->orderByDesc('salary_date')
@@ -85,8 +80,9 @@ class EmployeeSalaryController extends Controller
 
         return view('employee-salaries.index', [
             'salaries' => $rows,
+            'employees' => $employees,
             'filters' => [
-                'employee_name' => $filters['employee_name'] ?? null,
+                'employee_id' => $filters['employee_id'] ?? null,
                 'from_date_bs' => $filters['from_date_bs'] ?? null,
                 'to_date_bs' => $filters['to_date_bs'] ?? null,
             ],
@@ -143,19 +139,9 @@ class EmployeeSalaryController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreEmployeeSalaryRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'salary_month_bs' => ['required', 'regex:/^\d{4}-\d{2}$/'],
-            'salary_date_bs' => ['required', 'regex:/^\d{4}-\d{2}-\d{2}$/'],
-            'account_id' => ['required', 'integer', 'exists:accounts,id'],
-            'leaves' => ['nullable', 'array'],
-            'leaves.*' => ['nullable', 'numeric', 'min:0'],
-            'overtimes' => ['nullable', 'array'],
-            'overtimes.*' => ['nullable', 'numeric', 'min:0'],
-            'save_as_expense' => ['nullable', 'boolean'],
-            'remarks' => ['nullable', 'string', 'max:1000'],
-        ]);
+        $validated = $request->validated();
 
         try {
             [$bsYear, $bsMonth] = $this->parseBsMonth($validated['salary_month_bs']);
