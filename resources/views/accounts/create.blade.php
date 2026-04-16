@@ -24,8 +24,8 @@
                 <div>
                     <label for="opening_balance_side" class="block text-sm font-medium text-gray-700">Side</label>
                     <select id="opening_balance_side" name="opening_balance_side" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200">
-                        <option value="dr" @selected(old('opening_balance_side', 'dr') === 'dr')>DR</option>
-                        <option value="cr" @selected(old('opening_balance_side') === 'cr')>CR</option>
+                        <option value="dr" @selected(old('opening_balance_side', 'dr') === 'dr')>Receivable</option>
+                        <option value="cr" @selected(old('opening_balance_side') === 'cr')>Payable</option>
                     </select>
                 </div>
             </div>

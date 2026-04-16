@@ -35,8 +35,8 @@
                 <div>
                     <label for="quick_party_opening_balance_side" class="block text-sm font-medium text-gray-700">Side</label>
                     <select id="quick_party_opening_balance_side" name="opening_balance_side" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200">
-                        <option value="dr" selected>DR</option>
-                        <option value="cr">CR</option>
+                        <option value="dr" selected>Receivable</option>
+                        <option value="cr">Payable</option>
                     </select>
                 </div>
             </div>

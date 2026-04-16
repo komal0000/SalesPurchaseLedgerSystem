@@ -12,7 +12,7 @@
                 <div class="text-right">
                     <p class="font-mono text-2xl font-semibold text-indigo-700">{{ number_format($purchase->total, 2) }}</p>
                     @if ($purchase->remaining_amount > 0)
-                        <a href="{{ route('payments.create', ['party_id' => $purchase->party_id, 'purchase_id' => $purchase->id]) }}" class="mt-3 inline-flex rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700">Add Payment</a>
+                        <a href="{{ route('payments.create', ['party_id' => $purchase->party_id]) }}" class="mt-3 inline-flex rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700">Add Payment</a>
                     @endif
                 </div>
             </div>

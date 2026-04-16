@@ -4,7 +4,15 @@
     'value' => null,
 ])
 
-<div x-data="bsDateSelector('{{ $name }}', @js($value))" class="bs-date-picker">
+@php
+    $resolvedValue = $value;
+
+    if (in_array($name, ['from_date_bs', 'to_date_bs'], true) && blank($resolvedValue)) {
+        $resolvedValue = \App\Helpers\DateHelper::getCurrentBS();
+    }
+@endphp
+
+<div x-data="bsDateSelector('{{ $name }}', @js($resolvedValue))" class="bs-date-picker">
     <label class="block text-sm font-medium text-gray-700">{{ $label }}</label>
     <input type="hidden" name="{{ $name }}" :value="formattedDate">
 
@@ -41,12 +49,12 @@
             <div class="bs-calendar-head">
                 <button type="button" class="bs-calendar-nav" @click="prevMonth()" aria-label="Previous month">&lt;</button>
                 <div class="bs-calendar-selectors">
-                    <select x-model="viewYear" @change="syncFromSelectors()" class="bs-calendar-select">
+                    <select :value="String(viewYear || '')" @change="viewYear = String($event.target.value); syncFromSelectors()" class="bs-calendar-select">
                         <template x-for="yearOption in years" :key="yearOption">
                             <option :value="String(yearOption)" x-text="yearOption"></option>
                         </template>
                     </select>
-                    <select x-model="viewMonth" @change="syncFromSelectors()" class="bs-calendar-select">
+                    <select :value="String(viewMonth || '01')" @change="viewMonth = String($event.target.value); syncFromSelectors()" class="bs-calendar-select">
                         <template x-for="monthOption in 12" :key="monthOption">
                             <option :value="pad(monthOption)" x-text="monthLabel(monthOption)"></option>
                         </template>

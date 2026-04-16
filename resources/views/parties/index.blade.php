@@ -17,6 +17,32 @@
             </button>
         </div>
 
+        <form method="GET" action="{{ route('parties.index') }}" class="grid gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm md:grid-cols-[minmax(0,1fr)_220px_auto] md:items-end">
+            <div>
+                <label for="party-filter-keyword" class="block text-sm font-medium text-gray-700">Search</label>
+                <input
+                    id="party-filter-keyword"
+                    type="text"
+                    name="keyword"
+                    value="{{ $filters['keyword'] ?? '' }}"
+                    placeholder="Name, phone, or address"
+                    class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2"
+                >
+            </div>
+            <div>
+                <label for="party-filter-category" class="block text-sm font-medium text-gray-700">Category</label>
+                <select id="party-filter-category" name="category" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2">
+                    <option value="">All parties</option>
+                    <option value="employee" @selected(($filters['category'] ?? null) === 'employee')>Employee Party</option>
+                    <option value="ordinary" @selected(($filters['category'] ?? null) === 'ordinary')>Ordinary Party</option>
+                </select>
+            </div>
+            <div class="flex items-center gap-3 md:pb-0.5">
+                <button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Search</button>
+                <a href="{{ route('parties.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Reset</a>
+            </div>
+        </form>
+
         <div class="hidden overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm md:block">
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
@@ -92,7 +118,8 @@
                                 <td class="px-5 py-4">
                                     <div class="flex items-center justify-end gap-4">
                                         <a href="{{ route('parties.ledger', $party) }}" class="text-sm text-indigo-600 hover:text-indigo-700">Ledger</a>
-                                        <form action="{{ route('parties.destroy', $party) }}" method="POST" onsubmit="return confirm('Delete this party? Existing related records may prevent deletion.')">
+                                        <a href="{{ route('parties.edit', $party) }}" class="text-sm text-gray-700 hover:text-gray-900">Edit</a>
+                                        <form action="{{ route('parties.destroy', $party) }}" method="POST" onsubmit="return confirm('Delete this party? If linked records exist, deletion will be blocked.')">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="text-sm text-red-500 hover:text-red-700">Delete</button>
@@ -125,11 +152,14 @@
                     </div>
                     <div class="mt-4 flex items-center justify-between border-t border-gray-100 pt-3">
                         <a href="{{ route('parties.ledger', $party) }}" class="text-sm font-medium text-indigo-600">View Ledger</a>
-                        <form action="{{ route('parties.destroy', $party) }}" method="POST" onsubmit="return confirm('Delete this party? Existing related records may prevent deletion.')">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="text-sm font-medium text-red-500">Delete</button>
-                        </form>
+                        <div class="flex items-center gap-3">
+                            <a href="{{ route('parties.edit', $party) }}" class="text-sm font-medium text-gray-700">Edit</a>
+                            <form action="{{ route('parties.destroy', $party) }}" method="POST" onsubmit="return confirm('Delete this party? If linked records exist, deletion will be blocked.')">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="text-sm font-medium text-red-500">Delete</button>
+                            </form>
+                        </div>
                     </div>
                 </div>
             @empty
@@ -158,9 +188,11 @@
 
             const storeUrl = @json(route('parties.store'));
             const showUrlTemplate = @json(route('parties.show', ['party' => '__PARTY_ID__']));
+            const editUrlTemplate = @json(route('parties.edit', ['party' => '__PARTY_ID__']));
             const ledgerUrlTemplate = @json(route('parties.ledger', ['party' => '__PARTY_ID__']));
             const destroyUrlTemplate = @json(route('parties.destroy', ['party' => '__PARTY_ID__']));
             const csrfToken = @json(csrf_token());
+            const hasActiveFilters = @json($hasActiveFilters ?? false);
             const pageLimit = 20;
             const numberFormatter = new Intl.NumberFormat('en-US', {
                 minimumFractionDigits: 2,
@@ -247,6 +279,7 @@
 
                 const partyId = encodeURIComponent(String(party.id));
                 const showUrl = showUrlTemplate.replace('__PARTY_ID__', partyId);
+                const editUrl = editUrlTemplate.replace('__PARTY_ID__', partyId);
                 const ledgerUrl = ledgerUrlTemplate.replace('__PARTY_ID__', partyId);
                 const destroyUrl = destroyUrlTemplate.replace('__PARTY_ID__', partyId);
 
@@ -265,7 +298,8 @@
                     <td class="px-5 py-4">
                         <div class="flex items-center justify-end gap-4">
                             <a href="${ledgerUrl}" class="text-sm text-indigo-600 hover:text-indigo-700">Ledger</a>
-                            <form action="${destroyUrl}" method="POST" onsubmit="return confirm('Delete this party? Existing related records may prevent deletion.')">
+                            <a href="${editUrl}" class="text-sm text-gray-700 hover:text-gray-900">Edit</a>
+                            <form action="${destroyUrl}" method="POST" onsubmit="return confirm('Delete this party? If linked records exist, deletion will be blocked.')">
                                 <input type="hidden" name="_token" value="${escapeHtml(csrfToken)}">
                                 <input type="hidden" name="_method" value="DELETE">
                                 <button type="submit" class="text-sm text-red-500 hover:text-red-700">Delete</button>
@@ -349,6 +383,11 @@
                             renderErrors({ request: [payload.message || 'Could not save party. Please try again.'] });
                         }
 
+                        return;
+                    }
+
+                    if (hasActiveFilters) {
+                        window.location.reload();
                         return;
                     }
 

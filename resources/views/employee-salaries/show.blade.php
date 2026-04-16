@@ -1,6 +1,10 @@
 @extends('layouts.app')
 
 @section('content')
+    @php
+        $advanceDeduction = (float) ($salary->advance_deduction_amount ?? 0);
+        $leaveDeduction = (float) $salary->deduction - $advanceDeduction;
+    @endphp
     <div class="space-y-6">
         <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
             <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -25,7 +29,15 @@
                             <td class="px-4 py-3 text-right font-mono text-green-700">{{ number_format((float) $salary->allowance, 2) }}</td>
                         </tr>
                         <tr class="border-b border-gray-100">
-                            <td class="px-4 py-3 text-gray-600">Deduction</td>
+                            <td class="px-4 py-3 text-gray-600">Leave Deduction</td>
+                            <td class="px-4 py-3 text-right font-mono text-red-600">{{ number_format($leaveDeduction, 2) }}</td>
+                        </tr>
+                        <tr class="border-b border-gray-100">
+                            <td class="px-4 py-3 text-gray-600">Advance Deduction</td>
+                            <td class="px-4 py-3 text-right font-mono text-red-600">{{ number_format($advanceDeduction, 2) }}</td>
+                        </tr>
+                        <tr class="border-b border-gray-100">
+                            <td class="px-4 py-3 text-gray-600">Total Deduction</td>
                             <td class="px-4 py-3 text-right font-mono text-red-600">{{ number_format((float) $salary->deduction, 2) }}</td>
                         </tr>
                         <tr class="border-b border-gray-100">

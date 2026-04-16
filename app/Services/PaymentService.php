@@ -15,13 +15,16 @@ class PaymentService
     public function create(array $data): Payment
     {
         return DB::transaction(function () use ($data) {
-            if (!empty($data['sale_id']) && !empty($data['purchase_id'])) {
+            $saleId = $data['sale_id'] ?? null;
+            $purchaseId = $data['purchase_id'] ?? null;
+
+            if (!empty($saleId) && !empty($purchaseId)) {
                 throw new InvalidArgumentException('Payment cannot link to both a sale and a purchase.');
             }
 
-            if (!empty($data['sale_id'])) {
+            if (!empty($saleId)) {
                 $isPartyMatched = Sale::query()
-                    ->whereKey($data['sale_id'])
+                    ->whereKey($saleId)
                     ->where('party_id', $data['party_id'])
                     ->exists();
 
@@ -30,9 +33,9 @@ class PaymentService
                 }
             }
 
-            if (!empty($data['purchase_id'])) {
+            if (!empty($purchaseId)) {
                 $isPartyMatched = Purchase::query()
-                    ->whereKey($data['purchase_id'])
+                    ->whereKey($purchaseId)
                     ->where('party_id', $data['party_id'])
                     ->exists();
 
@@ -45,10 +48,12 @@ class PaymentService
                 'party_id' => $data['party_id'],
                 'amount' => $data['amount'],
                 'type' => $data['type'],
+                'payment_kind' => $data['payment_kind'] ?? null,
+                'advance_direction' => $data['advance_direction'] ?? null,
                 'account_id' => $data['account_id'],
                 'cheque_number' => $data['cheque_number'] ?? null,
-                'sale_id' => $data['sale_id'] ?: null,
-                'purchase_id' => $data['purchase_id'] ?: null,
+                'sale_id' => $saleId ?: null,
+                'purchase_id' => $purchaseId ?: null,
             ]);
 
             $this->ledger->recordPayment($payment);

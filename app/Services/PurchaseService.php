@@ -36,6 +36,7 @@ class PurchaseService
                     'party_id' => $purchase->party_id,
                     'amount' => $paymentData['amount'],
                     'type' => 'given',
+                    'payment_kind' => 'payable',
                     'account_id' => $paymentData['account_id'],
                     'cheque_number' => $paymentData['cheque_number'] ?? null,
                     'sale_id' => null,

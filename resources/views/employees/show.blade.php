@@ -8,7 +8,10 @@
                     <h1 class="text-2xl font-semibold text-gray-900">{{ $employee->party?->name ?? '-' }}</h1>
                     <p class="mt-1 text-sm text-gray-500">Phone: {{ $employee->party?->phone ?? '-' }}</p>
                 </div>
-                <a href="{{ route('employees.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Back</a>
+                <div class="flex items-center gap-3">
+                    <a href="{{ route('employee-advances.index', ['employee_id' => $employee->id]) }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Employee Advances</a>
+                    <a href="{{ route('employees.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Back</a>
+                </div>
             </div>
 
             <div class="mt-6 grid gap-4 sm:grid-cols-2">

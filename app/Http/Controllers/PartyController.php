@@ -27,18 +27,47 @@ class PartyController extends Controller
         private readonly PartyCacheService $partyCache,
     ) {}
 
-    public function index(): View
+    public function index(Request $request): View
     {
+        $filters = $request->validate([
+            'keyword' => ['nullable', 'string', 'max:255'],
+            'category' => ['nullable', 'in:employee,ordinary'],
+        ]);
+
+        $keyword = trim((string) ($filters['keyword'] ?? ''));
+
         $parties = Party::query()
+            ->when($keyword !== '', function ($query) use ($keyword) {
+                $term = '%' . $keyword . '%';
+
+                $query->where(function ($subQuery) use ($term) {
+                    $subQuery
+                        ->where('name', 'like', $term)
+                        ->orWhere('phone', 'like', $term)
+                        ->orWhere('address', 'like', $term);
+                });
+            })
+            ->when(($filters['category'] ?? null) === 'employee', fn ($query) => $query->whereHas('employees'))
+            ->when(($filters['category'] ?? null) === 'ordinary', fn ($query) => $query->whereDoesntHave('employees'))
             ->latest()
             ->paginate(20)
+            ->withQueryString()
             ->through(function (Party $party) {
                 $party->balance = $this->ledger->partyBalance($party->id);
 
                 return $party;
             });
 
-        return view('parties.index', compact('parties'));
+        $hasActiveFilters = $keyword !== '' || filled($filters['category'] ?? null);
+
+        return view('parties.index', [
+            'parties' => $parties,
+            'filters' => [
+                'keyword' => $keyword,
+                'category' => $filters['category'] ?? null,
+            ],
+            'hasActiveFilters' => $hasActiveFilters,
+        ]);
     }
 
     public function store(StorePartyRequest $request): RedirectResponse|JsonResponse
@@ -78,6 +107,28 @@ class PartyController extends Controller
             'balance' => $this->ledger->partyBalance($party->id),
             'openingBalanceSigned' => $this->openingSigned((float) ($party->opening_balance ?? 0), $party->opening_balance_side ?? 'dr'),
         ]);
+    }
+
+    public function edit(Party $party): View
+    {
+        return view('parties.edit', [
+            'party' => $party,
+        ]);
+    }
+
+    public function update(StorePartyRequest $request, Party $party): RedirectResponse
+    {
+        $validated = $request->validated();
+
+        $validated['opening_balance'] = (float) ($validated['opening_balance'] ?? 0);
+        $validated['opening_balance_side'] = $validated['opening_balance_side'] ?? 'dr';
+
+        $party->update($validated);
+        $this->partyCache->refreshAll();
+
+        return redirect()
+            ->route('parties.show', $party)
+            ->with('success', 'Party updated successfully.');
     }
 
     public function ledgerStatement(Request $request, Party $party): View
@@ -211,6 +262,24 @@ class PartyController extends Controller
 
     public function destroy(Party $party): RedirectResponse
     {
+        $blockingRecords = collect([
+            'employees' => $party->employees()->count(),
+            'sales' => $party->sales()->withTrashed()->count(),
+            'purchases' => $party->purchases()->withTrashed()->count(),
+            'payments' => $party->payments()->withTrashed()->count(),
+            'ledger entries' => $party->ledgerEntries()->count(),
+        ])->filter(fn (int $count): bool => $count > 0);
+
+        if ($blockingRecords->isNotEmpty()) {
+            $details = $blockingRecords
+                ->map(fn (int $count, string $label): string => sprintf('%s (%d)', ucfirst($label), $count))
+                ->implode(', ');
+
+            return redirect()
+                ->route('parties.index')
+                ->with('error', 'Party cannot be deleted because it is linked to: ' . $details . '.');
+        }
+
         $party->delete();
 
         $this->partyCache->refreshAll();

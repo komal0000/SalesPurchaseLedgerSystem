@@ -45,6 +45,7 @@
                             <th class="px-4 py-3 text-right">Overtime Days</th>
                             <th class="px-4 py-3 text-right">Basic</th>
                             <th class="px-4 py-3 text-right">Allowance</th>
+                            <th class="px-4 py-3 text-right">Advance Deduction</th>
                             <th class="px-4 py-3 text-right">Deduction</th>
                             <th class="px-4 py-3 text-right">Net Salary</th>
                             <th class="px-4 py-3 text-left">Expense</th>
@@ -64,6 +65,7 @@
                                 <td class="px-4 py-3 text-right font-mono">{{ number_format((float) $salary->overtime_days, 2) }}</td>
                                 <td class="px-4 py-3 text-right font-mono">{{ number_format((float) $salary->basic_salary, 2) }}</td>
                                 <td class="px-4 py-3 text-right font-mono text-green-700">{{ number_format((float) $salary->allowance, 2) }}</td>
+                                <td class="px-4 py-3 text-right font-mono text-red-600">{{ number_format((float) ($salary->advance_deduction_amount ?? 0), 2) }}</td>
                                 <td class="px-4 py-3 text-right font-mono text-red-600">{{ number_format((float) $salary->deduction, 2) }}</td>
                                 <td class="px-4 py-3 text-right font-mono font-semibold text-indigo-700">{{ number_format((float) $salary->net_salary, 2) }}</td>
                                 <td class="px-4 py-3">
@@ -82,7 +84,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="11" class="px-4 py-10 text-center text-gray-500">
+                                <td colspan="12" class="px-4 py-10 text-center text-gray-500">
                                     {{ $hasSearched ? 'No salary records found.' : 'Use search filters to load salary records.' }}
                                 </td>
                             </tr>

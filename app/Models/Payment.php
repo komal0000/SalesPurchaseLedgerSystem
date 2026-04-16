@@ -48,4 +48,34 @@ class Payment extends Model
     {
         return $this->belongsTo(Purchase::class);
     }
+
+    public function resolvedPaymentKind(): string
+    {
+        if (filled($this->payment_kind)) {
+            return (string) $this->payment_kind;
+        }
+
+        if (filled($this->sale_id)) {
+            return 'receivable';
+        }
+
+        if (filled($this->purchase_id)) {
+            return 'payable';
+        }
+
+        return 'advance';
+    }
+
+    public function resolvedAdvanceDirection(): ?string
+    {
+        if ($this->resolvedPaymentKind() !== 'advance') {
+            return null;
+        }
+
+        if (filled($this->advance_direction)) {
+            return (string) $this->advance_direction;
+        }
+
+        return $this->type === 'given' ? 'paid' : 'received';
+    }
 }

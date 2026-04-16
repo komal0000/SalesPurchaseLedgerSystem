@@ -7,7 +7,10 @@
                 <h1 class="text-2xl font-semibold text-gray-900 sm:text-3xl">Employees</h1>
                 <p class="text-sm text-gray-500">Manage employee master with linked party and base salary.</p>
             </div>
-            <a href="{{ route('employees.create') }}" class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-700">New Employee</a>
+            <div class="flex items-center gap-3">
+                <a href="{{ route('employee-advances.index') }}" class="inline-flex items-center justify-center rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">Employee Advances</a>
+                <a href="{{ route('employees.create') }}" class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-700">New Employee</a>
+            </div>
         </div>
 
         <form method="GET" action="{{ route('employees.index') }}" class="grid gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm md:grid-cols-[minmax(0,1fr)_auto] md:items-end">

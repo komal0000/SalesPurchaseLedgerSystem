@@ -8,7 +8,10 @@
                     <h1 class="text-2xl font-semibold text-gray-900">Salary Sheet</h1>
                     <p class="mt-1 text-sm text-gray-500">Calculate monthly salary from employee base salary, leave days, and overtime days.</p>
                 </div>
-                <a href="{{ route('employees.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Manage Employees</a>
+                <div class="flex items-center gap-3">
+                    <a href="{{ route('employee-advances.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Employee Advances</a>
+                    <a href="{{ route('employees.index') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Manage Employees</a>
+                </div>
             </div>
 
             <form method="GET" action="{{ route('employee-salaries.create') }}" class="mt-5 grid gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
@@ -67,6 +70,8 @@
                                 <th class="px-4 py-3 text-right">Leave Days</th>
                                 <th class="px-4 py-3 text-right">Overtime Days</th>
                                 <th class="px-4 py-3 text-right">Leave Deduction</th>
+                                <th class="px-4 py-3 text-right">Advance Deduction</th>
+                                <th class="px-4 py-3 text-right">Total Deduction</th>
                                 <th class="px-4 py-3 text-right">Overtime Amount</th>
                                 <th class="px-4 py-3 text-right">Net Salary</th>
                             </tr>
@@ -84,6 +89,7 @@
                                     data-leave-rate="{{ number_format((float) $row['leave_fine_per_day'], 4, '.', '') }}"
                                     data-overtime-rate="{{ number_format((float) $row['overtime_money_per_day'], 4, '.', '') }}"
                                     data-base-salary="{{ number_format((float) $row['basic_salary'], 2, '.', '') }}"
+                                    data-advance-deduction="{{ number_format((float) $row['advance_deduction'], 2, '.', '') }}"
                                 >
                                     <td class="px-4 py-3">
                                         <p class="font-medium text-gray-900">{{ $employee->party?->name ?? '-' }}</p>
@@ -112,13 +118,15 @@
                                             class="salary-overtime-input w-24 rounded-lg border border-gray-300 px-2 py-1 text-right"
                                         >
                                     </td>
-                                    <td class="px-4 py-3 text-right font-mono text-red-600 salary-deduction">{{ number_format((float) $row['deduction'], 2) }}</td>
+                                    <td class="px-4 py-3 text-right font-mono text-red-600 salary-leave-deduction">{{ number_format((float) $row['leave_deduction'], 2) }}</td>
+                                    <td class="px-4 py-3 text-right font-mono text-red-600">{{ number_format((float) $row['advance_deduction'], 2) }}</td>
+                                    <td class="px-4 py-3 text-right font-mono text-red-600 salary-total-deduction">{{ number_format((float) $row['deduction'], 2) }}</td>
                                     <td class="px-4 py-3 text-right font-mono text-green-700 salary-allowance">{{ number_format((float) $row['allowance'], 2) }}</td>
                                     <td class="px-4 py-3 text-right font-mono font-semibold text-indigo-700 salary-net">{{ number_format((float) $row['net_salary'], 2) }}</td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="9" class="px-4 py-10 text-center text-gray-500">
+                                    <td colspan="11" class="px-4 py-10 text-center text-gray-500">
                                         No employees found. Create employees first to generate a salary sheet.
                                     </td>
                                 </tr>
@@ -159,9 +167,11 @@
                 const leaveRate = parseFloat(row.dataset.leaveRate || '0');
                 const overtimeRate = parseFloat(row.dataset.overtimeRate || '0');
                 const baseSalary = parseFloat(row.dataset.baseSalary || '0');
+                const advanceDeduction = parseFloat(row.dataset.advanceDeduction || '0') || 0;
                 const leaveInput = row.querySelector('.salary-leave-input');
                 const overtimeInput = row.querySelector('.salary-overtime-input');
-                const deductionCell = row.querySelector('.salary-deduction');
+                const leaveDeductionCell = row.querySelector('.salary-leave-deduction');
+                const totalDeductionCell = row.querySelector('.salary-total-deduction');
                 const allowanceCell = row.querySelector('.salary-allowance');
                 const netCell = row.querySelector('.salary-net');
 
@@ -169,12 +179,16 @@
                     const leaveDays = parseFloat(leaveInput?.value || '0') || 0;
                     const overtimeDays = parseFloat(overtimeInput?.value || '0') || 0;
 
-                    const deduction = leaveRate * leaveDays;
+                    const leaveDeduction = leaveRate * leaveDays;
+                    const deduction = leaveDeduction + advanceDeduction;
                     const allowance = overtimeRate * overtimeDays;
                     const net = baseSalary + allowance - deduction;
 
-                    if (deductionCell) {
-                        deductionCell.textContent = formatAmount(deduction);
+                    if (leaveDeductionCell) {
+                        leaveDeductionCell.textContent = formatAmount(leaveDeduction);
+                    }
+                    if (totalDeductionCell) {
+                        totalDeductionCell.textContent = formatAmount(deduction);
                     }
                     if (allowanceCell) {
                         allowanceCell.textContent = formatAmount(allowance);

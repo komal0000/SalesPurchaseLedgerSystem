@@ -7,6 +7,7 @@ use App\Http\Requests\StoreEmployeeSalaryRequest;
 use App\Models\Account;
 use App\Models\Employee;
 use App\Models\EmployeeLeaveOvertime;
+use App\Models\EmployeeSalaryAdvance;
 use App\Models\EmployeeSalary;
 use App\Models\PayrollSetting;
 use App\Services\PaymentService;
@@ -129,10 +130,19 @@ class EmployeeSalaryController extends Controller
             'overtime_money_per_day' => 0,
         ]);
 
+        $advanceTotals = EmployeeSalaryAdvance::query()
+            ->where('salary_month', $salaryMonthBs)
+            ->selectRaw('employee_id, COALESCE(SUM(amount), 0) as total_advance')
+            ->groupBy('employee_id')
+            ->pluck('total_advance', 'employee_id')
+            ->all();
+
+        $salaryDateBs = DateHelper::formattedDate($bsYear, $bsMonth, DateHelper::getDaysInMonth($bsYear, $bsMonth));
+
         return view('employee-salaries.create', [
             'salaryMonthBs' => $salaryMonthBs,
-            'salaryDateBs' => DateHelper::formattedDate($bsYear, $bsMonth, 1),
-            'sheetRows' => $this->buildSheetRows($employees, $leaveRows, (float) $payrollSetting->leave_fine_per_day, (float) $payrollSetting->overtime_money_per_day),
+            'salaryDateBs' => $salaryDateBs,
+            'sheetRows' => $this->buildSheetRows($employees, $leaveRows, $advanceTotals, (float) $payrollSetting->leave_fine_per_day, (float) $payrollSetting->overtime_money_per_day),
             'accounts' => $accounts,
             'selectedAccountId' => old('account_id', $accounts->firstWhere('type', 'cash')?->id),
             'payrollSetting' => $payrollSetting,
@@ -159,7 +169,23 @@ class EmployeeSalaryController extends Controller
             ]);
         }
 
+        $selectedSalaryDay = (int) substr($validated['salary_date_bs'], -2);
+        $lastDayOfMonth = DateHelper::getDaysInMonth($bsYear, $bsMonth);
+
+        if ($selectedSalaryDay !== $lastDayOfMonth) {
+            throw ValidationException::withMessages([
+                'salary_date_bs' => sprintf('Salary date must be the last BS day of selected month (%02d).', $lastDayOfMonth),
+            ]);
+        }
+
         $saveAsExpense = (bool) ($validated['save_as_expense'] ?? true);
+
+        $advanceTotals = EmployeeSalaryAdvance::query()
+            ->where('salary_month', $validated['salary_month_bs'])
+            ->selectRaw('employee_id, COALESCE(SUM(amount), 0) as total_advance')
+            ->groupBy('employee_id')
+            ->pluck('total_advance', 'employee_id')
+            ->all();
 
         $payrollSetting = PayrollSetting::query()->firstOrCreate([], [
             'leave_fine_per_day' => 0,
@@ -194,13 +220,14 @@ class EmployeeSalaryController extends Controller
             }
         }
 
-        $result = DB::transaction(function () use ($validated, $salaryDateAd, $bsYear, $bsMonth, $employees, $saveAsExpense, $payrollSetting) {
+        $result = DB::transaction(function () use ($validated, $salaryDateAd, $bsYear, $bsMonth, $employees, $saveAsExpense, $advanceTotals, $payrollSetting) {
             $savedSalaries = collect();
             $totalNet = 0.0;
 
             foreach ($employees as $employee) {
                 $leaveDays = (float) ($validated['leaves'][$employee->id] ?? 0);
                 $overtimeDays = (float) ($validated['overtimes'][$employee->id] ?? 0);
+                $advanceDeduction = (float) ($advanceTotals[$employee->id] ?? 0);
 
                 EmployeeLeaveOvertime::query()->updateOrCreate(
                     [
@@ -220,6 +247,7 @@ class EmployeeSalaryController extends Controller
                     $overtimeDays,
                     (float) $payrollSetting->leave_fine_per_day,
                     (float) $payrollSetting->overtime_money_per_day,
+                    $advanceDeduction,
                 );
 
                 $salary = EmployeeSalary::query()->updateOrCreate(
@@ -236,6 +264,7 @@ class EmployeeSalaryController extends Controller
                         'basic_salary' => $amounts['basic_salary'],
                         'allowance' => $amounts['allowance'],
                         'deduction' => $amounts['deduction'],
+                        'advance_deduction_amount' => $amounts['advance_deduction'],
                         'leave_days' => $leaveDays,
                         'overtime_days' => $overtimeDays,
                         'net_salary' => $amounts['net_salary'],
@@ -248,6 +277,8 @@ class EmployeeSalaryController extends Controller
                         'party_id' => $employee->party_id,
                         'amount' => $amounts['net_salary'],
                         'type' => 'given',
+                        'payment_kind' => 'payable',
+                        'advance_direction' => null,
                         'account_id' => $validated['account_id'],
                         'cheque_number' => null,
                         'sale_id' => null,
@@ -319,38 +350,44 @@ class EmployeeSalaryController extends Controller
         return [$year, $month];
     }
 
-    private function buildSheetRows(Collection $employees, Collection $leaveRows, float $leaveFinePerDay, float $overtimeMoneyPerDay): Collection
+    private function buildSheetRows(Collection $employees, Collection $leaveRows, array $advanceTotals, float $leaveFinePerDay, float $overtimeMoneyPerDay): Collection
     {
-        return $employees->map(function (Employee $employee) use ($leaveRows, $leaveFinePerDay, $overtimeMoneyPerDay) {
+        return $employees->map(function (Employee $employee) use ($leaveRows, $advanceTotals, $leaveFinePerDay, $overtimeMoneyPerDay) {
             $leaveDays = (float) ($leaveRows->get($employee->id)?->leave_days ?? 0);
             $overtimeDays = (float) ($leaveRows->get($employee->id)?->overtime_days ?? 0);
-            $amounts = $this->calculateSalary((float) $employee->salary, $leaveDays, $overtimeDays, $leaveFinePerDay, $overtimeMoneyPerDay);
+            $advanceDeduction = (float) ($advanceTotals[$employee->id] ?? 0);
+            $amounts = $this->calculateSalary((float) $employee->salary, $leaveDays, $overtimeDays, $leaveFinePerDay, $overtimeMoneyPerDay, $advanceDeduction);
 
             return [
                 'employee' => $employee,
                 'leave_days' => $leaveDays,
                 'overtime_days' => $overtimeDays,
+                'advance_deduction' => $amounts['advance_deduction'],
                 'daily_rate' => $amounts['daily_rate'],
                 'leave_fine_per_day' => $leaveFinePerDay,
                 'overtime_money_per_day' => $overtimeMoneyPerDay,
                 'basic_salary' => $amounts['basic_salary'],
                 'allowance' => $amounts['allowance'],
+                'leave_deduction' => $amounts['leave_deduction'],
                 'deduction' => $amounts['deduction'],
                 'net_salary' => $amounts['net_salary'],
             ];
         });
     }
 
-    private function calculateSalary(float $basicSalary, float $leaveDays, float $overtimeDays, float $leaveFinePerDay, float $overtimeMoneyPerDay): array
+    private function calculateSalary(float $basicSalary, float $leaveDays, float $overtimeDays, float $leaveFinePerDay, float $overtimeMoneyPerDay, float $advanceDeduction = 0): array
     {
         $dailyRate = round($basicSalary / 30, 2);
         $allowance = round($overtimeMoneyPerDay * $overtimeDays, 2);
-        $deduction = round($leaveFinePerDay * $leaveDays, 2);
+        $leaveDeduction = round($leaveFinePerDay * $leaveDays, 2);
+        $deduction = round($leaveDeduction + $advanceDeduction, 2);
 
         return [
             'daily_rate' => $dailyRate,
             'basic_salary' => $basicSalary,
             'allowance' => $allowance,
+            'leave_deduction' => $leaveDeduction,
+            'advance_deduction' => round($advanceDeduction, 2),
             'deduction' => $deduction,
             'net_salary' => round($basicSalary + $allowance - $deduction, 2),
         ];

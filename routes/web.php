@@ -4,6 +4,7 @@ use App\Http\Controllers\AccountController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\EmployeeSalaryAdvanceController;
 use App\Http\Controllers\EmployeeSalaryController;
 use App\Http\Controllers\PartyController;
 use App\Http\Controllers\PaymentController;
@@ -40,7 +41,7 @@ Route::middleware('auth')->group(function () {
         ->middleware('admin')
         ->name('settings.users.destroy');
 
-    Route::resource('parties', PartyController::class)->only(['index', 'store', 'show']);
+    Route::resource('parties', PartyController::class)->only(['index', 'store', 'show', 'edit', 'update']);
     Route::delete('parties/{party}', [PartyController::class, 'destroy'])
         ->middleware('admin')
         ->name('parties.destroy');
@@ -52,6 +53,8 @@ Route::middleware('auth')->group(function () {
     Route::patch('accounts/{account}/opening-balance', [AccountController::class, 'updateOpeningBalance'])->name('accounts.opening-balance.update');
 
     Route::resource('employees', EmployeeController::class)->only(['index', 'create', 'store', 'show']);
+    Route::get('employee-advances', [EmployeeSalaryAdvanceController::class, 'index'])->name('employee-advances.index');
+    Route::post('employee-advances', [EmployeeSalaryAdvanceController::class, 'store'])->name('employee-advances.store');
 
     Route::resource('sales', SaleController::class)->only(['index', 'create', 'store', 'show']);
     Route::delete('sales/{sale}', [SaleController::class, 'destroy'])

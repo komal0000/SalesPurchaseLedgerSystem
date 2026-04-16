@@ -69,11 +69,22 @@
                 </div>
                 <div class="space-y-3">
                     @forelse ($recentPayments as $payment)
+                        @php
+                            $paymentKind = $payment->resolvedPaymentKind();
+                            $advanceDirection = $payment->resolvedAdvanceDirection();
+                            $kindBadge = $paymentKind === 'receivable'
+                                ? 'bg-green-100 text-green-700'
+                                : ($paymentKind === 'payable' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700');
+                            $kindLabel = ucfirst($paymentKind);
+                            if ($paymentKind === 'advance' && $advanceDirection) {
+                                $kindLabel = 'Advance ' . ucfirst($advanceDirection);
+                            }
+                        @endphp
                         <a href="{{ route('payments.show', $payment) }}" class="block rounded-lg border border-gray-200 px-4 py-3 hover:bg-gray-50">
                             <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                 <span class="font-medium">{{ $payment->party->name }}</span>
-                                <span class="rounded-full px-2 py-1 text-xs font-medium {{ $payment->type === 'received' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700' }}">
-                                    {{ ucfirst($payment->type) }}
+                                <span class="rounded-full px-2 py-1 text-xs font-medium {{ $kindBadge }}">
+                                    {{ $kindLabel }}
                                 </span>
                             </div>
                             <div class="mt-1 flex items-center justify-between text-sm text-gray-500">

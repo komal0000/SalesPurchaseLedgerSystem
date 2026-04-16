@@ -5,20 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class EmployeeSalary extends Model
+class EmployeeSalaryAdvance extends Model
 {
     protected $guarded = [];
 
     protected $casts = [
-        'salary_date' => 'date',
-        'basic_salary' => 'decimal:2',
-        'allowance' => 'decimal:2',
-        'deduction' => 'decimal:2',
-        'advance_deduction_amount' => 'decimal:2',
-        'leave_days' => 'decimal:2',
-        'overtime_days' => 'decimal:2',
-        'net_salary' => 'decimal:2',
-        'expense_saved_at' => 'datetime',
+        'advance_date' => 'date',
+        'amount' => 'decimal:2',
     ];
 
     public function employee(): BelongsTo
@@ -36,8 +29,8 @@ class EmployeeSalary extends Model
         return $this->belongsTo(Account::class);
     }
 
-    public function expensePayment(): BelongsTo
+    public function payment(): BelongsTo
     {
-        return $this->belongsTo(Payment::class, 'expense_payment_id');
+        return $this->belongsTo(Payment::class);
     }
 }

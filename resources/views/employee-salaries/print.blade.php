@@ -23,6 +23,10 @@
     </style>
 </head>
 <body>
+    @php
+        $advanceDeduction = (float) ($salary->advance_deduction_amount ?? 0);
+        $leaveDeduction = (float) $salary->deduction - $advanceDeduction;
+    @endphp
     <div class="container">
         <div class="header">
             <div>
@@ -45,7 +49,15 @@
                     <td class="amount">{{ number_format((float) $salary->allowance, 2) }}</td>
                 </tr>
                 <tr>
-                    <td>Deduction</td>
+                    <td>Leave Deduction</td>
+                    <td class="amount">{{ number_format($leaveDeduction, 2) }}</td>
+                </tr>
+                <tr>
+                    <td>Advance Deduction</td>
+                    <td class="amount">{{ number_format($advanceDeduction, 2) }}</td>
+                </tr>
+                <tr>
+                    <td>Total Deduction</td>
                     <td class="amount">{{ number_format((float) $salary->deduction, 2) }}</td>
                 </tr>
                 <tr>

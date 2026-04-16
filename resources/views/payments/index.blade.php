@@ -10,7 +10,7 @@
             <a href="{{ route('payments.create') }}" class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-700">New Payment</a>
         </div>
 
-        <form method="GET" action="{{ route('payments.index') }}" class="grid gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm md:grid-cols-6 md:items-end">
+        <form method="GET" action="{{ route('payments.index') }}" class="grid gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm md:grid-cols-7 md:items-end">
             <div>
                 <div class="flex items-center justify-between">
                     <label for="payments-filter-party-select" class="block text-sm font-medium text-gray-700">Party</label>
@@ -33,11 +33,20 @@
                 </select>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700">Type</label>
-                <select name="type" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2">
+                <label class="block text-sm font-medium text-gray-700">Payment Kind</label>
+                <select name="payment_kind" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2">
                     <option value="">All</option>
-                    <option value="received" @selected(($filters['type'] ?? null) === 'received')>Received</option>
-                    <option value="given" @selected(($filters['type'] ?? null) === 'given')>Given</option>
+                    <option value="receivable" @selected(($filters['payment_kind'] ?? null) === 'receivable')>Receivable</option>
+                    <option value="payable" @selected(($filters['payment_kind'] ?? null) === 'payable')>Payable</option>
+                    <option value="advance" @selected(($filters['payment_kind'] ?? null) === 'advance')>Advance</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Advance Direction</label>
+                <select name="advance_direction" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2">
+                    <option value="">All</option>
+                    <option value="paid" @selected(($filters['advance_direction'] ?? null) === 'paid')>Advance Paid</option>
+                    <option value="received" @selected(($filters['advance_direction'] ?? null) === 'received')>Advance Received</option>
                 </select>
             </div>
             @include('partials.bs-date-selector', ['name' => 'from_date_bs', 'label' => 'From BS Date', 'value' => $filters['from_date_bs'] ?? null])
@@ -59,7 +68,7 @@
                         <tr>
                             <th class="px-5 py-4 text-left">Party</th>
                             <th class="px-5 py-4 text-right">Amount</th>
-                            <th class="px-5 py-4 text-left">Type</th>
+                            <th class="px-5 py-4 text-left">Kind</th>
                             <th class="px-5 py-4 text-left">Account</th>
                             <th class="px-5 py-4 text-left">Cheque Number</th>
                             <th class="px-5 py-4 text-left">Linked Bill</th>
@@ -68,14 +77,25 @@
                     </thead>
                     <tbody>
                         @forelse ($payments as $payment)
+                            @php
+                                $paymentKind = $payment->resolvedPaymentKind();
+                                $advanceDirection = $payment->resolvedAdvanceDirection();
+                                $kindBadge = $paymentKind === 'receivable'
+                                    ? 'bg-green-100 text-green-700'
+                                    : ($paymentKind === 'payable' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700');
+                                $kindLabel = ucfirst($paymentKind);
+                                if ($paymentKind === 'advance' && $advanceDirection) {
+                                    $kindLabel = 'Advance ' . ucfirst($advanceDirection);
+                                }
+                            @endphp
                             <tr class="border-t border-gray-100 hover:bg-gray-50/80">
                                 <td class="px-5 py-4 font-medium text-gray-900">
                                     <a href="{{ route('payments.show', $payment) }}" class="hover:text-indigo-600">{{ $payment->party->name }}</a>
                                 </td>
                                 <td class="px-5 py-4 text-right font-mono font-semibold text-indigo-700">{{ number_format($payment->amount, 2) }}</td>
                                 <td class="px-5 py-4">
-                                    <span class="rounded-full px-2.5 py-1 text-xs font-medium {{ $payment->type === 'received' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700' }}">
-                                        {{ ucfirst($payment->type) }}
+                                    <span class="rounded-full px-2.5 py-1 text-xs font-medium {{ $kindBadge }}">
+                                        {{ $kindLabel }}
                                     </span>
                                 </td>
                                 <td class="px-5 py-4 text-gray-500">{{ $payment->account->name }}</td>
@@ -86,7 +106,7 @@
                                     @elseif ($payment->purchase)
                                         Purchase / {{ number_format($payment->purchase->total, 2) }}
                                     @else
-                                        Advance
+                                        {{ $paymentKind === 'advance' ? 'Advance' : 'Direct Entry' }}
                                     @endif
                                 </td>
                                 <td class="px-5 py-4">
@@ -114,6 +134,17 @@
 
         <div class="space-y-3 md:hidden">
             @forelse ($payments as $payment)
+                @php
+                    $paymentKind = $payment->resolvedPaymentKind();
+                    $advanceDirection = $payment->resolvedAdvanceDirection();
+                    $kindBadge = $paymentKind === 'receivable'
+                        ? 'bg-green-100 text-green-700'
+                        : ($paymentKind === 'payable' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700');
+                    $kindLabel = ucfirst($paymentKind);
+                    if ($paymentKind === 'advance' && $advanceDirection) {
+                        $kindLabel = 'Advance ' . ucfirst($advanceDirection);
+                    }
+                @endphp
                 <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
                     <div class="flex items-start justify-between gap-3">
                         <div>
@@ -124,8 +155,8 @@
                         <span class="font-mono text-sm font-semibold text-indigo-700">{{ number_format($payment->amount, 2) }}</span>
                     </div>
                     <div class="mt-3 flex items-center justify-between">
-                        <span class="rounded-full px-2.5 py-1 text-xs font-medium {{ $payment->type === 'received' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700' }}">
-                            {{ ucfirst($payment->type) }}
+                        <span class="rounded-full px-2.5 py-1 text-xs font-medium {{ $kindBadge }}">
+                            {{ $kindLabel }}
                         </span>
                         <span class="text-xs text-gray-500">
                             @if ($payment->sale)
@@ -133,7 +164,7 @@
                             @elseif ($payment->purchase)
                                 Purchase Linked
                             @else
-                                Advance
+                                {{ $paymentKind === 'advance' ? 'Advance' : 'Direct Entry' }}
                             @endif
                         </span>
                     </div>

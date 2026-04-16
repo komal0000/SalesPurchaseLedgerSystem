@@ -36,6 +36,7 @@ class SaleService
                     'party_id' => $sale->party_id,
                     'amount' => $paymentData['amount'],
                     'type' => 'received',
+                    'payment_kind' => 'receivable',
                     'account_id' => $paymentData['account_id'],
                     'cheque_number' => $paymentData['cheque_number'] ?? null,
                     'purchase_id' => null,

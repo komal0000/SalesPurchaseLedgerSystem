@@ -30,7 +30,8 @@ class PaymentController extends Controller
         $filters = $request->validate([
             'party_id' => ['nullable', 'integer', 'exists:parties,id'],
             'account_id' => ['nullable', 'integer', 'exists:accounts,id'],
-            'type' => ['nullable', 'in:received,given'],
+            'payment_kind' => ['nullable', 'in:receivable,payable,advance'],
+            'advance_direction' => ['nullable', 'in:paid,received'],
             'keyword' => ['nullable', 'string', 'max:80'],
             'from_date_bs' => ['nullable', 'regex:/^\d{4}-\d{2}-\d{2}$/'],
             'to_date_bs' => ['nullable', 'regex:/^\d{4}-\d{2}-\d{2}$/'],
@@ -49,7 +50,8 @@ class PaymentController extends Controller
 
         $hasSearched = filled($filters['party_id'] ?? null)
             || filled($filters['account_id'] ?? null)
-            || filled($filters['type'] ?? null)
+            || filled($filters['payment_kind'] ?? null)
+            || filled($filters['advance_direction'] ?? null)
             || filled($filters['keyword'] ?? null)
             || filled($filters['from_date_bs'] ?? null)
             || filled($filters['to_date_bs'] ?? null);
@@ -59,7 +61,12 @@ class PaymentController extends Controller
                 ->with(['party', 'account', 'sale', 'purchase'])
                 ->when($filters['party_id'] ?? null, fn ($query, $partyId) => $query->where('party_id', $partyId))
                 ->when($filters['account_id'] ?? null, fn ($query, $accountId) => $query->where('account_id', $accountId))
-                ->when($filters['type'] ?? null, fn ($query, $type) => $query->where('type', $type))
+                ->when($filters['payment_kind'] ?? null, function ($query, $paymentKind) {
+                    $this->applyPaymentKindFilter($query, $paymentKind);
+                })
+                ->when(($filters['payment_kind'] ?? null) === 'advance' && filled($filters['advance_direction'] ?? null), function ($query) use ($filters) {
+                    $this->applyAdvanceDirectionFilter($query, (string) $filters['advance_direction']);
+                })
                 ->when($fromAd, fn ($query) => $query->whereDate('created_at', '>=', $fromAd))
                 ->when($toAd, fn ($query) => $query->whereDate('created_at', '<=', $toAd))
                 ->when($filters['keyword'] ?? null, function ($query, $keyword) {
@@ -98,7 +105,8 @@ class PaymentController extends Controller
             'filters' => [
                 'party_id' => $filters['party_id'] ?? null,
                 'account_id' => $filters['account_id'] ?? null,
-                'type' => $filters['type'] ?? null,
+                'payment_kind' => $filters['payment_kind'] ?? null,
+                'advance_direction' => $filters['advance_direction'] ?? null,
                 'keyword' => $filters['keyword'] ?? null,
                 'from_date_bs' => $filters['from_date_bs'] ?? $todayBs,
                 'to_date_bs' => $filters['to_date_bs'] ?? $todayBs,
@@ -109,12 +117,10 @@ class PaymentController extends Controller
 
     public function create(Request $request): View
     {
-        $saleId = old('sale_id', $request->string('sale_id')->toString());
-        $purchaseId = old('purchase_id', $request->string('purchase_id')->toString());
+        $selectedPartyId = old('party_id', $request->string('party_id')->toString());
+        $selectedPaymentKind = old('payment_kind', 'advance');
+        $selectedAdvanceDirection = old('advance_direction', 'received');
 
-        $sale = filled($saleId) ? Sale::query()->with('party')->find($saleId) : null;
-        $purchase = filled($purchaseId) ? Purchase::query()->with('party')->find($purchaseId) : null;
-        $selectedPartyId = old('party_id', $request->string('party_id')->toString() ?: ($sale?->party_id ?? $purchase?->party_id));
         $accounts = Account::query()
             ->orderByRaw("case when type = 'cash' then 0 else 1 end")
             ->orderBy('name')
@@ -124,32 +130,22 @@ class PaymentController extends Controller
         return view('payments.create', [
             'parties' => $this->partyCache->all(),
             'accounts' => $accounts,
-            'selectedSaleOption' => $sale
-                ? [
-                    'id' => $sale->id,
-                    'text' => $this->billOptionText($sale->id, $sale->party?->name, (float) $sale->total),
-                ]
-                : null,
-            'selectedPurchaseOption' => $purchase
-                ? [
-                    'id' => $purchase->id,
-                    'text' => $this->billOptionText($purchase->id, $purchase->party?->name, (float) $purchase->total),
-                ]
-                : null,
             'selectedPartyId' => $selectedPartyId,
             'selectedAccountId' => old('account_id', $defaultCashAccountId),
-            'selectedSaleId' => old('sale_id', $sale?->id),
-            'selectedPurchaseId' => old('purchase_id', $purchase?->id),
+            'selectedPaymentKind' => $selectedPaymentKind,
+            'selectedAdvanceDirection' => $selectedAdvanceDirection,
         ]);
     }
 
     public function store(StorePaymentRequest $request): RedirectResponse
     {
         $validated = $request->validated();
+        $paymentKind = $this->resolvePaymentKind($validated);
+        $advanceDirection = $this->resolveAdvanceDirection($paymentKind, $validated);
 
-        $validated['type'] = !empty($validated['sale_id'])
-            ? 'received'
-            : (!empty($validated['purchase_id']) ? 'given' : 'received');
+        $validated['payment_kind'] = $paymentKind;
+        $validated['advance_direction'] = $advanceDirection;
+        $validated['type'] = $this->resolvePaymentType($paymentKind, $advanceDirection);
 
         $payment = $this->service->create($validated);
 
@@ -276,5 +272,113 @@ class PaymentController extends Controller
     private function billOptionText(int|string $id, ?string $partyName, float $total): string
     {
         return sprintf('#%d | %s | %s', (int) $id, $partyName ?? 'Unknown Party', number_format($total, 2));
+    }
+
+    private function resolvePaymentKind(array $validated): string
+    {
+        return $validated['payment_kind'] ?? 'advance';
+    }
+
+    private function resolveAdvanceDirection(string $paymentKind, array $validated): ?string
+    {
+        if ($paymentKind !== 'advance') {
+            return null;
+        }
+
+        return $validated['advance_direction'] ?? 'received';
+    }
+
+    private function resolvePaymentType(string $paymentKind, ?string $advanceDirection): string
+    {
+        if ($paymentKind === 'advance') {
+            return $advanceDirection === 'paid' ? 'given' : 'received';
+        }
+
+        return $paymentKind === 'payable' ? 'given' : 'received';
+    }
+
+    private function applyPaymentKindFilter($query, string $paymentKind): void
+    {
+        if ($paymentKind === 'receivable') {
+            $query->where(function ($subQuery) {
+                $subQuery
+                    ->where('payment_kind', 'receivable')
+                    ->orWhere(function ($legacyQuery) {
+                        $legacyQuery
+                            ->whereNull('payment_kind')
+                            ->whereNotNull('sale_id');
+                    });
+            });
+
+            return;
+        }
+
+        if ($paymentKind === 'payable') {
+            $query->where(function ($subQuery) {
+                $subQuery
+                    ->where('payment_kind', 'payable')
+                    ->orWhere(function ($legacyQuery) {
+                        $legacyQuery
+                            ->whereNull('payment_kind')
+                            ->whereNotNull('purchase_id');
+                    });
+            });
+
+            return;
+        }
+
+        $query->where(function ($subQuery) {
+            $subQuery
+                ->where('payment_kind', 'advance')
+                ->orWhere(function ($legacyQuery) {
+                    $legacyQuery
+                        ->whereNull('payment_kind')
+                        ->whereNull('sale_id')
+                        ->whereNull('purchase_id');
+                });
+        });
+    }
+
+    private function applyAdvanceDirectionFilter($query, string $advanceDirection): void
+    {
+        if ($advanceDirection === 'paid') {
+            $query->where(function ($subQuery) {
+                $subQuery
+                    ->where('advance_direction', 'paid')
+                    ->orWhere(function ($legacyAdvanceQuery) {
+                        $legacyAdvanceQuery
+                            ->where('payment_kind', 'advance')
+                            ->whereNull('advance_direction')
+                            ->where('type', 'given');
+                    })
+                    ->orWhere(function ($legacyNullKindQuery) {
+                        $legacyNullKindQuery
+                            ->whereNull('payment_kind')
+                            ->whereNull('sale_id')
+                            ->whereNull('purchase_id')
+                            ->where('type', 'given');
+                    });
+            });
+
+            return;
+        }
+
+        $query->where(function ($subQuery) {
+            $subQuery
+                ->where('advance_direction', 'received')
+                ->orWhere(function ($legacyAdvanceQuery) {
+                    $legacyAdvanceQuery
+                        ->where('payment_kind', 'advance')
+                        ->whereNull('advance_direction')
+                        ->where('type', 'received');
+                })
+                ->orWhere(function ($legacyNullKindQuery) {
+                    $legacyNullKindQuery
+                        ->whereNull('payment_kind')
+                        ->whereNull('sale_id')
+                        ->whereNull('purchase_id')
+                        ->where('type', 'received');
+                });
+        });
     }
 }

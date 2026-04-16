@@ -1,6 +1,17 @@
 @extends('layouts.app')
 
 @section('content')
+    @php
+        $paymentKind = $payment->resolvedPaymentKind();
+        $advanceDirection = $payment->resolvedAdvanceDirection();
+        $kindBadge = $paymentKind === 'receivable'
+            ? 'bg-green-100 text-green-700'
+            : ($paymentKind === 'payable' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700');
+        $kindLabel = ucfirst($paymentKind);
+        if ($paymentKind === 'advance' && $advanceDirection) {
+            $kindLabel = 'Advance ' . ucfirst($advanceDirection);
+        }
+    @endphp
     <div class="space-y-6">
         <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
             <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -8,8 +19,8 @@
                     <h1 class="text-2xl font-semibold text-gray-900">Payment Detail</h1>
                     <p class="mt-1 text-sm text-gray-500">{{ $payment->party->name }} • {{ $payment->created_at->format('d M Y, h:i A') }}</p>
                 </div>
-                <span class="rounded-full px-3 py-1 text-sm font-medium {{ $payment->type === 'received' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700' }}">
-                    {{ ucfirst($payment->type) }}
+                <span class="rounded-full px-3 py-1 text-sm font-medium {{ $kindBadge }}">
+                    {{ $kindLabel }}
                 </span>
             </div>
 
@@ -26,6 +37,12 @@
                     <dt class="text-sm text-gray-500">Cheque Number</dt>
                     <dd class="mt-1 text-xl font-semibold text-gray-900">{{ $payment->cheque_number ?: '-' }}</dd>
                 </div>
+                @if ($paymentKind === 'advance')
+                    <div class="rounded-lg bg-gray-50 p-4">
+                        <dt class="text-sm text-gray-500">Advance Direction</dt>
+                        <dd class="mt-1 text-xl font-semibold text-gray-900">{{ ucfirst($advanceDirection ?? '-') }}</dd>
+                    </div>
+                @endif
                 <div class="rounded-lg bg-gray-50 p-4 sm:col-span-2">
                     <dt class="text-sm text-gray-500">Linked Bill</dt>
                     <dd class="mt-1 text-gray-900">
@@ -34,7 +51,7 @@
                         @elseif ($payment->purchase)
                             Purchase / {{ $payment->purchase->party->name ?? $payment->party->name }} / {{ number_format($payment->purchase->total, 2) }}
                         @else
-                            Advance payment
+                            {{ $paymentKind === 'advance' ? 'Advance payment' : ucfirst($paymentKind) . ' direct payment' }}
                         @endif
                     </dd>
                 </div>

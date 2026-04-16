@@ -12,7 +12,7 @@
     <link href="{{ asset('css/layout.css') }}" rel="stylesheet" />
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-    <script src="{{ asset('js/layout.js') }}" defer></script>
+    <script src="{{ asset('js/layout.js') }}?v={{ filemtime(public_path('js/layout.js')) }}" defer></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 <body class="min-h-screen bg-gray-50 text-gray-800" x-data="{ sidebarOpen: false }">
@@ -22,6 +22,7 @@
             ['label' => 'Parties', 'route' => 'parties.index', 'active' => 'parties.*'],
             ['label' => 'Accounts', 'route' => 'accounts.index', 'active' => 'accounts.*'],
             ['label' => 'Employees', 'route' => 'employees.index', 'active' => 'employees.*'],
+            ['label' => 'Employee Advances', 'route' => 'employee-advances.index', 'active' => 'employee-advances.*'],
             ['label' => 'Sales', 'route' => 'sales.index', 'active' => 'sales.*'],
             ['label' => 'Purchases', 'route' => 'purchases.index', 'active' => 'purchases.*'],
             ['label' => 'Payments', 'route' => 'payments.index', 'active' => 'payments.*'],

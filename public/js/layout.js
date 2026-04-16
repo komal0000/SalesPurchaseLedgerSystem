@@ -46,19 +46,37 @@ function bsDateSelector(name, initialValue = null) {
             this.openCalendar();
         },
         openCalendar() {
+            let preferredYear = '';
+            let preferredMonth = '';
+
             if (this.year && this.month) {
-                this.viewYear = this.year;
-                this.viewMonth = this.month;
+                preferredYear = String(this.year);
+                preferredMonth = this.pad(this.month);
             } else {
                 const parsedToday = this.parseDate(this.today);
                 if (parsedToday) {
-                    this.viewYear = String(parsedToday.year);
-                    this.viewMonth = this.pad(parsedToday.month);
+                    preferredYear = String(parsedToday.year);
+                    preferredMonth = this.pad(parsedToday.month);
                 }
+            }
+
+            if (preferredYear && this.monthMap[preferredYear]) {
+                this.viewYear = preferredYear;
+                this.viewMonth = preferredMonth;
             }
 
             this.generateCalendar();
             this.isOpen = true;
+
+            if (typeof this.$nextTick === 'function') {
+                this.$nextTick(() => {
+                    if (preferredYear && this.monthMap[preferredYear]) {
+                        this.viewYear = preferredYear;
+                        this.viewMonth = preferredMonth;
+                        this.generateCalendar();
+                    }
+                });
+            }
         },
         closeCalendar() {
             this.isOpen = false;

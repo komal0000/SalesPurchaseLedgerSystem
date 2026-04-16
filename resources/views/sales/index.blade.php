@@ -55,7 +55,7 @@
                                 <td class="px-5 py-4">
                                     <div class="flex items-center justify-end gap-4">
                                         <a href="{{ route('sales.show', $sale) }}" class="text-sm text-indigo-600 hover:text-indigo-700">View</a>
-                                        <a href="{{ route('payments.create', ['party_id' => $sale->party_id, 'sale_id' => $sale->id]) }}" class="text-sm text-green-600 hover:text-green-700">Payment</a>
+                                        <a href="{{ route('payments.create', ['party_id' => $sale->party_id]) }}" class="text-sm text-green-600 hover:text-green-700">Payment</a>
                                         <form action="{{ route('sales.destroy', $sale) }}" method="POST" onsubmit="return confirm('Delete this sale? The ledger entry will remain for audit history.')">
                                             @csrf
                                             @method('DELETE')
@@ -92,7 +92,7 @@
                     </div>
                     <div class="mt-4 flex items-center justify-between border-t border-gray-100 pt-3 text-sm">
                         <a href="{{ route('sales.show', $sale) }}" class="font-medium text-indigo-600">View Bill</a>
-                        <a href="{{ route('payments.create', ['party_id' => $sale->party_id, 'sale_id' => $sale->id]) }}" class="font-medium text-green-600">Add Payment</a>
+                        <a href="{{ route('payments.create', ['party_id' => $sale->party_id]) }}" class="font-medium text-green-600">Add Payment</a>
                     </div>
                 </div>
             @empty
